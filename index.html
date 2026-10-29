@@ -249,7 +249,7 @@ const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelecto
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const AI_ENDPOINT='https://yes.ta5l0good.workers.dev/';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
 const ep=()=>AI_ENDPOINT||S.aiUrl||'';
-async function viaEp(h,signal){const res=await fetch(ep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:h}),signal});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.text||'error');return{text:j.text}}
+async function viaEp(h,signal){const res=await fetch(ep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:h}),signal});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.text||('HTTP '+res.status));return{text:j.text}}
 const cap=async n=>{try{return window.claude?await window.claude.use(n):null}catch(e){return null}};
 
 let S={name:'guest',coins:0,acc:'#5eead4',own:['#5eead4'],anim:true,h24:false,watch:[],links:[],hs:{snake:0,mem:0},user:null,gl:null};
@@ -465,7 +465,7 @@ function secAI(el){
     hist.push({role:'user',content:q});const out=add('Thinking…',false);busy=true;ac=new AbortController();
     const msgs=hist.map((m,i)=>i===hist.length-1?{role:'user',content:'You are the helper inside a small browser start page. Answer clearly and briefly.\n\n'+m.content}:m);
     try{const r=sample?await sample(msgs,{cache:false,signal:ac.signal,onText:u=>{out.textContent=u.text||'Thinking…';ms.scrollTop=ms.scrollHeight}}):await viaEp(hist,ac.signal);out.textContent=r.text;hist.push({role:'assistant',content:r.text})}
-    catch(err){out.textContent=err&&err.code==='not_granted'?'Permission was declined, so I can’t answer.':'That didn’t work. Try again in a moment.';hist.pop()}busy=false};
+    catch(err){out.textContent=err&&err.code==='not_granted'?'Permission was declined, so I can’t answer.':'That didn’t work: '+(err&&err.message?err.message:'network error');hist.pop()}busy=false};
   return()=>ac&&ac.abort();
 }
 
