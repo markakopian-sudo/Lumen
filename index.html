@@ -236,7 +236,7 @@ function toast(t){const e=document.createElement('div');e.className='toast';e.te
 /* ---------- sections registry ---------- */
 const SEC={
  games:{n:'Games',i:'games',d:'Snake, memory and tic-tac-toe. Earn coins.',f:secGames},
- music:{n:'Music',i:'music',d:'Generative ambient sound you can leave running.',f:secMusic},
+ music:{n:'Music',i:'music',d:'Listen to music on monochrome.st',f:secMusic},
  movies:{n:'Movies',i:'film',d:'Your watchlist, plus quick lookup.',f:secMovies},
  chat:{n:'Chat',i:'chat',d:'Talk with anyone who has this page open.',f:secChat},
  vms:{n:'Sandbox',i:'vm',d:'A small command line that runs in the page.',f:secVMs},
@@ -368,24 +368,8 @@ function gTtt(b){
 }
 
 /* ---------- music ---------- */
-let AU=null;
-const MOODS={calm:{n:'Calm',d:'Soft pentatonic bells',sc:[261.63,293.66,329.63,392,440,523.25,587.33],gap:1000,w:'sine'},night:{n:'Night',d:'Slow minor arpeggios',sc:[110,164.81,196,220,261.63,329.63],gap:1500,w:'triangle'},rain:{n:'Rain',d:'Filtered noise, no melody',noise:true}};
-function au(){if(!AU){const ctx=new(window.AudioContext||window.webkitAudioContext)(),m=ctx.createGain(),an=ctx.createAnalyser();m.gain.value=.6;an.fftSize=64;m.connect(an);an.connect(ctx.destination);AU={ctx,m,an,mood:null,tm:null,nodes:[]}}return AU}
-function stopMusic(){if(!AU)return;clearInterval(AU.tm);AU.nodes.forEach(n=>{try{n.stop()}catch(e){}});AU.nodes=[];AU.mood=null}
-function playMood(k){stopMusic();const a=au();a.ctx.resume();a.mood=k;const m=MOODS[k];
-  const note=(f,w)=>{const o=a.ctx.createOscillator(),g=a.ctx.createGain(),t=a.ctx.currentTime;o.type=w;o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.16,t+.05);g.gain.exponentialRampToValueAtTime(.001,t+3);o.connect(g);g.connect(a.m);o.start(t);o.stop(t+3.1)};
-  if(m.noise){const buf=a.ctx.createBuffer(1,a.ctx.sampleRate*2,a.ctx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=a.ctx.createBufferSource(),f=a.ctx.createBiquadFilter(),g=a.ctx.createGain();s.buffer=buf;s.loop=true;f.type='bandpass';f.frequency.value=1400;f.Q.value=.5;g.gain.value=.35;s.connect(f);f.connect(g);g.connect(a.m);s.start();a.nodes.push(s)}
-  else{const p=()=>note(m.sc[Math.random()*m.sc.length|0],m.w);p();a.tm=setInterval(()=>{p();if(Math.random()<.3)setTimeout(p,m.gap/2)},m.gap)}}
 function secMusic(el){
-  el.innerHTML=`<div class="glow"></div><div style="position:relative"><h1>Music</h1><p class="sub">Generated live in your browser, so it never ends.</p><canvas class="viz" id="vz" width="800" height="120"></canvas><div class="moods">${Object.entries(MOODS).map(([k,m])=>`<button class="card" data-m="${k}"><h3>${m.n}</h3><p>${m.d}</p></button>`).join('')}</div><div class="row"><button class="btn ghost" id="st">Stop</button><label class="row" style="margin:0">Volume <input type="range" id="vl" min="0" max="1" step=".05" value="${AU?AU.m.gain.value:.6}"></label></div><div class="row" style="margin-top:12px"><span class="sub" style="margin:0">Want more?</span><button class="btn ghost" data-go="https://open.spotify.com">Spotify</button><button class="btn ghost" data-go="https://soundcloud.com">SoundCloud</button><button class="btn ghost" data-go="https://bandcamp.com">Bandcamp</button><button class="btn ghost" data-go="https://archive.org/details/audio">Internet Archive</button></div></div>`;
-  const mark=()=>$$('.moods .card',el).forEach(c=>c.classList.toggle('on',AU&&AU.mood===c.dataset.m));mark();
-  $('.moods',el).onclick=e=>{const c=e.target.closest('[data-m]');if(c){playMood(c.dataset.m);mark()}};
-  $('#st',el).onclick=()=>{stopMusic();mark()};
-  $('#vl',el).oninput=e=>{au().m.gain.value=+e.target.value};
-  const cv=$('#vz',el),x=cv.getContext('2d');let raf,d=new Uint8Array(32);
-  const loop=()=>{x.clearRect(0,0,800,120);if(AU)AU.an.getByteFrequencyData(d);else d.fill(0);const w=800/32;
-    for(let i=0;i<32;i++){const h=Math.max(4,d[i]/255*110);x.fillStyle=S.acc;x.globalAlpha=.4+d[i]/430;x.beginPath();x.roundRect(i*w+4,120-h,w-8,h,6);x.fill()}raf=requestAnimationFrame(loop)};loop();
-  return()=>cancelAnimationFrame(raf);
+  go('https://monochrome.st');
 }
 
 /* ---------- movies ---------- */
