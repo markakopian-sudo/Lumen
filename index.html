@@ -247,7 +247,7 @@ const P={home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',games:'<rect x="2" y="7"
 const ic=n=>`<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const AI_ENDPOINT='';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
+const AI_ENDPOINT='https://yes.ta5l0good.workers.dev/';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
 const ep=()=>AI_ENDPOINT||S.aiUrl||'';
 async function viaEp(h,signal){const res=await fetch(ep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:h}),signal});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.text||'error');return{text:j.text}}
 const cap=async n=>{try{return window.claude?await window.claude.use(n):null}catch(e){return null}};
