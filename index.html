@@ -530,28 +530,51 @@ function secChat(el){
     $('#gc',el).onclick=()=>openSec('account');return;
   }
   el.style.padding='0';
-  const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,av=n=>n===S.name&&S.pic?`<img class="av" alt="" src="${S.pic}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(n[0].toUpperCase())}</span>`;
+  const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,
+   av=(n,own)=>(own===undefined?n===S.name:own)&&S.pic?`<img class="av" alt="" src="${S.pic}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(n[0].toUpperCase())}</span>`;
   el.innerHTML=`<div class="dc"><div class="dcintro" id="dci"><div class="dcl">${'Lumen Chat'.split('').map((c,i)=>`<span style="--d:${i*80}ms">${c===' '?'&nbsp;':c}</span>`).join('')}</div><p>Tap to skip</p></div>
   <div class="dcsrv"><button aria-label="Lumen server">L</button></div>
-  <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme">${av(S.name)}<b>${nameHtml(S.name)}</b></div></div>
+  <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div></div>
   <div class="dcmain"><div class="dchead"><i>#</i><b id="cn">general</b><span id="cs">Connecting…</span></div><div class="dcmsgs" id="cm"></div><form class="dcin" id="cf"><input id="cinp" placeholder="Message #general" aria-label="Message" autocomplete="off" maxlength="500"></form></div>
-  <div class="dcmem"><small>ONLINE</small><div class="dcm2">${av(S.name)}<b>${nameHtml(S.name)}</b></div><div id="cml" class="sub" style="font-size:13px;margin:8px 0 0"></div></div></div>`;
-  let ch='general',room=null,offs=[],tm=[];
-  const msgs=$('#cm',el),now=()=>new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  const row=m=>{const d=document.createElement('div');if(m.sys){d.className='dcm sys';d.textContent=m.t}else{d.className='dcm';d.innerHTML=`${av(m.n)}<div>${m.n===S.name?`<b>${nameHtml(m.n)}</b>`:((m.s&&m.s!=='plain')||BADGES.includes(m.b))?`<b>${nameHtml(m.n,m.s,m.b)}</b>`:`<b style="color:hsl(${hue(m.n)} 70% 72%)">${esc(m.n)}</b>`}<time>${esc(m.tm)}</time><p></p></div>`;$('p',d).textContent=m.t}msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
-  const draw=()=>{msgs.innerHTML='';if(!LOG[ch].length)LOG[ch].push({sys:1,t:'This is the start of #'+ch+'.'});LOG[ch].forEach(row)};
-  const push=(c,m)=>{if(!LOG[c])return;LOG[c].push(m);if(c===ch)row(m)};
+  <div class="dcmem"><small>ONLINE</small><div class="dcm2">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div><div id="cml" class="sub" style="font-size:13px;margin:8px 0 0"></div></div></div>`;
+  const live=!!(aep()&&S.token),SV={general:[],random:[],games:[]},list=live?SV:LOG,lastTs={},seen=new Set();
+  let ch='general',room=null,offs=[],tm=[],iv=null,quiet=0,polling=false;
+  const msgs=$('#cm',el),now=()=>new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),setSt=t=>{const s=$('#cs',el);if(s)s.textContent=t};
+  const row=m=>{const d=document.createElement('div');
+    if(m.sys){d.className='dcm sys';d.textContent=m.t}
+    else{const own=m.u?m.u===S.user:m.n===S.name,styled=(m.s&&m.s!=='plain')||BADGES.includes(m.b);
+      const nm=(own&&!m.u)?`<b>${nameHtml(m.n)}</b>`:(own||styled)?`<b>${nameHtml(m.n,m.s,m.b)}</b>`:`<b style="color:hsl(${hue(m.n)} 70% 72%)">${esc(m.n)}</b>`;
+      d.className='dcm';d.innerHTML=`${av(m.n,own)}<div>${nm}<time>${esc(m.tm||new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time><p></p></div>`;$('p',d).textContent=m.t}
+    msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
+  const draw=()=>{msgs.innerHTML='';if(!list[ch].length)list[ch].push({sys:1,t:'This is the start of #'+ch+'.'});list[ch].forEach(row)};
+  const push=(c,m)=>{if(!list[c])return;list[c].push(m);if(c===ch)row(m)};
+  const recent=()=>{const n=[...new Set(list[ch].filter(m=>m.u&&m.u!==S.user&&Date.now()-m.ts<9e5).map(m=>m.n))].slice(0,8);$('#cml',el).textContent=n.length?n.join(', ')+' active recently':'No one else active recently'};
   draw();
-  $('.dcch',el).onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;ch=b.dataset.c;$$('.dcch [data-c]',el).forEach(x=>x.classList.toggle('on',x===b));$('#cn',el).textContent=ch;$('#cinp',el).placeholder='Message #'+ch;msgs.classList.remove('swap');void msgs.offsetWidth;msgs.classList.add('swap');draw()};
+  $('.dcch',el).onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;ch=b.dataset.c;$$('.dcch [data-c]',el).forEach(x=>x.classList.toggle('on',x===b));$('#cn',el).textContent=ch;$('#cinp',el).placeholder='Message #'+ch;msgs.classList.remove('swap');void msgs.offsetWidth;msgs.classList.add('swap');draw();if(live){quiet=0;poll()}};
   const gone=()=>{const i=$('#dci',el);if(i&&!i.classList.contains('gone')){i.classList.add('gone');tm.push(setTimeout(()=>i.remove(),700))}};
   tm.push(setTimeout(gone,2800));$('#dci',el).onclick=gone;
-  cap('room').then(r=>{room=r;const s=$('#cs',el);if(!s)return;
-    if(!r){s.textContent='Offline · only you see messages';return}
-    s.textContent='● Live';
+  async function poll(){
+    if(!live||polling||document.hidden||!el.isConnected)return sched();
+    polling=true;const c=ch;
+    try{const j=await api({action:'chat_poll',token:S.token,channel:c,since:lastTs[c]||0});let n=0;
+      (j.msgs||[]).forEach(m=>{lastTs[c]=Math.max(lastTs[c]||0,m.ts);if(!seen.has(m.id)){seen.add(m.id);push(c,m);n++}});
+      quiet=n?0:Math.min(quiet+1,10);setSt('● Live');recent()}
+    catch(e){if(e.status===401){polling=false;resetLocal();toast('Signed out');return openSec('account')}setSt('Reconnecting…')}
+    polling=false;sched()}
+  function sched(){clearTimeout(iv);if(live&&el.isConnected)iv=setTimeout(poll,quiet>6?8000:3500)}
+  const vis=()=>{if(!document.hidden)poll()};
+  if(live){document.addEventListener('visibilitychange',vis);poll()}
+  else cap('room').then(r=>{room=r;if(!$('#cs',el))return;
+    if(!r){setSt('Offline · only you see messages');return}
+    setSt('● Live');
     offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now(),s:NAME_STYLES.includes(d.s)?d.s:'plain',b:BADGES.includes(d.b)?d.b:''})}));
     offs.push(r.onPeers(c=>{const n=Math.max(0,c.peers.length-1);$('#cml',el).textContent=n?n+(n===1?' other person':' other people')+' here':'No one else is here yet'}))});
-  $('#cf',el).onsubmit=e=>{e.preventDefault();const i=$('#cinp',el),v=i.value.trim();if(!v)return;i.value='';push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&S.eq.name)||'plain',b:(S.eq&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
-  return()=>{tm.forEach(clearTimeout);offs.forEach(f=>{try{f&&f()}catch(e){}})};
+  $('#cf',el).onsubmit=async e=>{e.preventDefault();const i=$('#cinp',el),v=i.value.trim();if(!v)return;i.value='';
+    if(live){try{const j=await api({action:'chat_send',token:S.token,channel:ch,text:v,style:(S.eq&&S.eq.name)||'plain',badge:(S.eq&&S.eq.badge)||''});
+        if(!seen.has(j.msg.id)){seen.add(j.msg.id);push(ch,j.msg)}}
+      catch(x){if(x.status===401){resetLocal();toast('Signed out');return openSec('account')}toast(x.message||'Message not sent')}return}
+    push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&S.eq.name)||'plain',b:(S.eq&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
+  return()=>{tm.forEach(clearTimeout);clearTimeout(iv);document.removeEventListener('visibilitychange',vis);offs.forEach(f=>{try{f&&f()}catch(e){}})};
 }
 
 /* ---------- sandbox shell ---------- */
