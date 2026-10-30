@@ -295,8 +295,9 @@ async function copyText(t){
   const close=()=>{o.classList.add('out');setTimeout(()=>o.remove(),220)};o.querySelector('#cpx').onclick=close;o.onclick=e=>{if(e.target===o)close()};
 }
 function earn(n,raw){if(n<=0)return;const g=raw?n:Math.max(n,Math.round(n*mult()));S.coins+=g;save();applyTheme();const c=$('#coins');c.classList.add('pop');setTimeout(()=>c.classList.remove('pop'),300);toast('+'+g+' coins'+(!raw&&g>n?' (boosted)':''))}
-const badge=()=>S.eq&&S.eq.badge&&S.eq.badge!=='none'?S.eq.badge+' ':'';
-const nameHtml=n=>`${esc(badge())}<span class="nm nm-${esc((S.eq&&S.eq.name)||'plain')}">${esc(n)}</span>`;
+const NAME_STYLES=['plain','glow','grad','gold','rainbow'],BADGES=['🌟','🔥','🚀','🌙','🎮','🦄','👑','💎'];
+const badge=b=>{b=b===undefined?(S.eq&&S.eq.badge):b;return BADGES.includes(b)?b+' ':''};
+const nameHtml=(n,st,bd)=>{st=st===undefined?(S.eq&&S.eq.name):st;if(!NAME_STYLES.includes(st))st='plain';return `${esc(badge(bd))}<span class="nm nm-${st}">${esc(n)}</span>`};
 const fontLinked={};
 function loadFont(f){if(f==='dm'||f==='Mrs Saint Delafield'||fontLinked[f])return;fontLinked[f]=1;const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(f).replace(/%20/g,'+')+'&display=swap';document.head.appendChild(l)}
 function applyCosmetics(){const e=S.eq||{};const f=e.font==='dm'||!e.font?'DM Sans':e.font,g=e.sig||'Mrs Saint Delafield';loadFont(f);loadFont(g);
@@ -532,12 +533,12 @@ function secChat(el){
   const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,av=n=>n===S.name&&S.pic?`<img class="av" alt="" src="${S.pic}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(n[0].toUpperCase())}</span>`;
   el.innerHTML=`<div class="dc"><div class="dcintro" id="dci"><div class="dcl">${'Lumen Chat'.split('').map((c,i)=>`<span style="--d:${i*80}ms">${c===' '?'&nbsp;':c}</span>`).join('')}</div><p>Tap to skip</p></div>
   <div class="dcsrv"><button aria-label="Lumen server">L</button></div>
-  <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme">${av(S.name)}<b>${esc(S.name)}</b></div></div>
+  <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme">${av(S.name)}<b>${nameHtml(S.name)}</b></div></div>
   <div class="dcmain"><div class="dchead"><i>#</i><b id="cn">general</b><span id="cs">Connecting…</span></div><div class="dcmsgs" id="cm"></div><form class="dcin" id="cf"><input id="cinp" placeholder="Message #general" aria-label="Message" autocomplete="off" maxlength="500"></form></div>
-  <div class="dcmem"><small>ONLINE</small><div class="dcm2">${av(S.name)}<b>${esc(S.name)}</b></div><div id="cml" class="sub" style="font-size:13px;margin:8px 0 0"></div></div></div>`;
+  <div class="dcmem"><small>ONLINE</small><div class="dcm2">${av(S.name)}<b>${nameHtml(S.name)}</b></div><div id="cml" class="sub" style="font-size:13px;margin:8px 0 0"></div></div></div>`;
   let ch='general',room=null,offs=[],tm=[];
   const msgs=$('#cm',el),now=()=>new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  const row=m=>{const d=document.createElement('div');if(m.sys){d.className='dcm sys';d.textContent=m.t}else{d.className='dcm';d.innerHTML=`${av(m.n)}<div>${m.n===S.name?`<b>${nameHtml(m.n)}</b>`:`<b style="color:hsl(${hue(m.n)} 70% 72%)">${esc(m.n)}</b>`}<time>${esc(m.tm)}</time><p></p></div>`;$('p',d).textContent=m.t}msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
+  const row=m=>{const d=document.createElement('div');if(m.sys){d.className='dcm sys';d.textContent=m.t}else{d.className='dcm';d.innerHTML=`${av(m.n)}<div>${m.n===S.name?`<b>${nameHtml(m.n)}</b>`:((m.s&&m.s!=='plain')||BADGES.includes(m.b))?`<b>${nameHtml(m.n,m.s,m.b)}</b>`:`<b style="color:hsl(${hue(m.n)} 70% 72%)">${esc(m.n)}</b>`}<time>${esc(m.tm)}</time><p></p></div>`;$('p',d).textContent=m.t}msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
   const draw=()=>{msgs.innerHTML='';if(!LOG[ch].length)LOG[ch].push({sys:1,t:'This is the start of #'+ch+'.'});LOG[ch].forEach(row)};
   const push=(c,m)=>{if(!LOG[c])return;LOG[c].push(m);if(c===ch)row(m)};
   draw();
@@ -547,9 +548,9 @@ function secChat(el){
   cap('room').then(r=>{room=r;const s=$('#cs',el);if(!s)return;
     if(!r){s.textContent='Offline · only you see messages';return}
     s.textContent='● Live';
-    offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now()})}));
+    offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now(),s:NAME_STYLES.includes(d.s)?d.s:'plain',b:BADGES.includes(d.b)?d.b:''})}));
     offs.push(r.onPeers(c=>{const n=Math.max(0,c.peers.length-1);$('#cml',el).textContent=n?n+(n===1?' other person':' other people')+' here':'No one else is here yet'}))});
-  $('#cf',el).onsubmit=e=>{e.preventDefault();const i=$('#cinp',el),v=i.value.trim();if(!v)return;i.value='';push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch}).catch(()=>toast('Message not sent'))};
+  $('#cf',el).onsubmit=e=>{e.preventDefault();const i=$('#cinp',el),v=i.value.trim();if(!v)return;i.value='';push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&S.eq.name)||'plain',b:(S.eq&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
   return()=>{tm.forEach(clearTimeout);offs.forEach(f=>{try{f&&f()}catch(e){}})};
 }
 
