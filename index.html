@@ -280,6 +280,16 @@ try{Object.assign(S,JSON.parse(localStorage.getItem('lumen')||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}};
 function applyTheme(){document.documentElement.style.setProperty('--acc',S.acc);document.body.classList.toggle('noanim',!S.anim);$('#coins').innerHTML=`${ic('shop').replace('class="i"','class="i" style="width:16px;height:16px"')}<b>${S.coins}</b>`}
 const mult=()=>Math.max(1,...BOOSTS.filter(b=>(S.items||[]).includes('boost:'+b[0])).map(b=>b[4]));
+async function copyText(t){
+  let ok=false;
+  try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
+  if(!ok){try{const a=document.createElement('textarea');a.value=t;a.setAttribute('readonly','');a.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(a);a.select();a.setSelectionRange(0,t.length);ok=document.execCommand('copy');a.remove()}catch(e){}}
+  if(ok)return toast('Copied');
+  const o=document.createElement('div');o.className='modal';
+  o.innerHTML='<div class="mbox"><h3>Copy this link</h3><p class="sub" style="font-size:14px">Your browser blocked automatic copying. The link is selected, so press Ctrl+C (or Cmd+C on a Mac).</p><input class="in" id="cpi" readonly style="width:100%;color:var(--text)"><div class="row" style="margin:14px 0 0"><button class="btn" id="cpx">Done</button></div></div>';
+  document.body.appendChild(o);const i=o.querySelector('#cpi');i.value=t;i.focus();i.select();
+  const close=()=>{o.classList.add('out');setTimeout(()=>o.remove(),220)};o.querySelector('#cpx').onclick=close;o.onclick=e=>{if(e.target===o)close()};
+}
 function earn(n,raw){if(n<=0)return;const g=raw?n:Math.max(n,Math.round(n*mult()));S.coins+=g;save();applyTheme();const c=$('#coins');c.classList.add('pop');setTimeout(()=>c.classList.remove('pop'),300);toast('+'+g+' coins'+(!raw&&g>n?' (boosted)':''))}
 const badge=()=>S.eq&&S.eq.badge&&S.eq.badge!=='none'?S.eq.badge+' ':'';
 const nameHtml=n=>`${esc(badge())}<span class="nm nm-${esc((S.eq&&S.eq.name)||'plain')}">${esc(n)}</span>`;
@@ -573,7 +583,7 @@ function secLinkgen(el){
   $('#gg',el).onclick=()=>mk(false);$('#gf',el).onclick=()=>mk(true);mk(false);
   $('#gl',el).onclick=e=>{const o=e.target.closest('[data-og]'),c=e.target.closest('[data-cg]'),L=$('#gl',el)._l;
     if(o)go(L[o.dataset.og][1]);
-    if(c)navigator.clipboard.writeText(L[c.dataset.cg][1]).then(()=>toast('Copied'),()=>toast('Copy blocked by the browser'))};
+    if(c)copyText(L[c.dataset.cg][1])};
   const r=()=>{$('#ll',el).innerHTML=S.links.length?S.links.map((l,i)=>`<div class="item"><span class="g"><b>${esc(l.n)}</b> <span class="sub" style="margin:0">${esc(l.u)}</span></span><button class="btn ghost" data-o="${i}">Open</button><button class="ic" data-d="${i}" aria-label="Remove">${ic('trash')}</button></div>`).join(''):'<div class="empty">No saved shortcuts yet. They show up on Home.</div>'};r();
   $('#lf',el).onsubmit=e=>{e.preventDefault();let u=$('#lu',el).value.trim(),n=$('#ln',el).value.trim();if(!u)return;if(!/^https?:\/\//i.test(u))u='https://'+u;
     try{const U=new URL(u);['utm_source','utm_medium','utm_campaign','fbclid','gclid'].forEach(k=>U.searchParams.delete(k));u=U.href;if(!n)n=U.hostname.replace(/^www\./,'')}catch(x){return toast('That doesn’t look like a link')}
