@@ -247,7 +247,7 @@ const P={home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',games:'<rect x="2" y="7"
 const ic=n=>`<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const AI_ENDPOINT='https://yes.ta5l0good.workers.dev/';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
+const AI_ENDPOINT='';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
 const ep=()=>AI_ENDPOINT||S.aiUrl||'';
 async function viaEp(h,signal){const res=await fetch(ep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:h}),signal});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.text||('HTTP '+res.status));return{text:j.text}}
 const cap=async n=>{try{return window.claude?await window.claude.use(n):null}catch(e){return null}};
@@ -261,7 +261,8 @@ function toast(t){const e=document.createElement('div');e.className='toast';e.te
 
 /* ---------- sections registry ---------- */
 const SEC={
- games:{n:'Games',i:'games',d:'Snake, memory and tic-tac-toe. Earn coins.',f:secGames},
+ games:{n:'Games',i:'games',d:'Opens gn-math.dev for more games.',f:secGames},
+ minigames:{n:'Mini games',i:'games',d:'Snake, memory and tic-tac-toe. Earn coins.',f:secGames},
  music:{n:'Music',i:'music',d:'Generative ambient sound you can leave running.',f:secMusic},
  movies:{n:'Movies',i:'film',d:'Your watchlist, plus quick lookup.',f:secMovies},
  ai:{n:'AI',i:'ai',d:'Ask Claude questions right here.',f:secAI},
@@ -289,7 +290,8 @@ function renderDock(){
 }
 function select(id,push=true){cur=id;if(push){hist=hist.slice(0,hi+1);hist.push(id);hi=hist.length-1}show()}
 function addTab(t){t.id=nid++;tabs.push(t);fresh=t.id;select(t.id)}
-function openSec(k){if(k==='home'){const h=tabs.find(t=>t.k==='home');return h?select(h.id):addTab({k:'home',t:'Home'})}const e=tabs.find(t=>t.k==='sec'&&t.key===k);e?select(e.id):addTab({k:'sec',key:k,t:SEC[k].n})}
+function openSec(k){
+  if(k==='games'){const e=tabs.find(t=>t.k==='web'&&t.url==='https://gn-math.dev/');return e?select(e.id):addTab({k:'web',t:'Games',url:'https://gn-math.dev/'})}if(k==='home'){const h=tabs.find(t=>t.k==='home');return h?select(h.id):addTab({k:'home',t:'Home'})}const e=tabs.find(t=>t.k==='sec'&&t.key===k);e?select(e.id):addTab({k:'sec',key:k,t:SEC[k].n})}
 function closeTab(id){
   const el=$(`.tab[data-id="${id}"]`);
   const fin=()=>{const i=tabs.findIndex(t=>t.id===id);if(i<0)return;const t=tabs[i];if(t.node)t.node.remove();tabs.splice(i,1);
