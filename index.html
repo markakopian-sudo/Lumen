@@ -270,14 +270,18 @@ const P={home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',games:'<rect x="2" y="7"
 const ic=n=>`<svg class="i" viewBox="0 0 24 24">${P[n]}</svg>`;
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const AI_ENDPOINT='';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
+const AUTH_ENDPOINT='https://lumen-auth.ta5l0good.workers.dev/';/* paste your account server URL here (see auth-worker.js) so one sign-in works on every link */
+const aep=()=>AUTH_ENDPOINT||S.authUrl||'';
+const AI_ENDPOINT='https://yes.ta5l0good.workers.dev/';/* paste your Claude proxy URL here (see claude-worker.js) so AI works on every site */
 const ep=()=>AI_ENDPOINT||S.aiUrl||'';
 async function viaEp(h,signal){const res=await fetch(ep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:h}),signal});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.text||('HTTP '+res.status));return{text:j.text}}
 const cap=async n=>{try{return window.claude?await window.claude.use(n):null}catch(e){return null}};
 
 let S={name:'guest',coins:0,acc:'#5eead4',own:['#5eead4'],anim:true,h24:false,watch:[],links:[],hs:{snake:0,mem:0},user:null,gl:null,items:[],eq:{bg:'aurora',font:'dm',sig:'Mrs Saint Delafield',name:'plain',badge:'none',frame:'none',fx:[]},gift:0};
 try{Object.assign(S,JSON.parse(localStorage.getItem('lumen')||'{}'))}catch(e){}
-const save=()=>{try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}};
+let syncT=null;
+const save=()=>{try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}
+  if(S.token&&aep()){clearTimeout(syncT);syncT=setTimeout(()=>{api({action:'update',token:S.token,data:snap()}).catch(e=>{if(e.status===401){S.token=null;S.user=null;S.name='guest';S.pic=null;try{localStorage.setItem('lumen',JSON.stringify(S))}catch(x){}}})},1500)}};
 function applyTheme(){document.documentElement.style.setProperty('--acc',S.acc);document.body.classList.toggle('noanim',!S.anim);$('#coins').innerHTML=`${ic('shop').replace('class="i"','class="i" style="width:16px;height:16px"')}<b>${S.coins}</b>`}
 const mult=()=>Math.max(1,...BOOSTS.filter(b=>(S.items||[]).includes('boost:'+b[0])).map(b=>b[4]));
 async function copyText(t){
@@ -520,7 +524,7 @@ function secAI(el){
 /* ---------- chat ---------- */
 const LOG={general:[],random:[],games:[]};
 function secChat(el){
-  if(!(S.user&&getAcc()[S.user])){
+  if(!signed()){
     el.innerHTML=`<div class="glow"></div><div class="auth"><div class="authc" style="text-align:center"><div style="width:68px;height:68px;border-radius:50%;background:color-mix(in srgb,var(--acc) 16%,transparent);display:grid;place-items:center;margin:0 auto 16px;color:var(--acc)">${ic('lock').replace('class="i"','class="i" style="width:30px;height:30px"')}</div><h1>Chat is for members</h1><p class="sub">Sign in or create an account to join the conversation.</p><button class="btn" id="gc" style="width:100%;justify-content:center">Sign in or sign up</button></div></div>`;
     $('#gc',el).onclick=()=>openSec('account');return;
   }
@@ -644,11 +648,24 @@ const getAcc=()=>{try{return JSON.parse(localStorage.getItem('lumen_accounts')||
 const setAcc=a=>{try{localStorage.setItem('lumen_accounts',JSON.stringify(a))}catch(e){}};
 async function hashPw(p,salt){const t=salt+':'+p;if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}let h=5381;for(const c of t)h=((h*33)^c.charCodeAt(0))>>>0;return String(h)}
 let fails=0,lock=0;
+const SYNC=['coins','hs','items','eq','own','acc','anim','h24','watch','links','gift'];
+const DEF=()=>({coins:0,hs:{snake:0,mem:0},items:[],eq:{bg:'aurora',font:'dm',sig:'Mrs Saint Delafield',name:'plain',badge:'none',frame:'none',fx:[]},own:['#5eead4'],acc:'#5eead4',anim:true,h24:false,watch:[],links:[],gift:0});
+const snap=()=>{const o={};SYNC.forEach(k=>o[k]=S[k]);return o};
+const signed=()=>!!(S.user&&(S.token||getAcc()[S.user]));
+async function api(b){const r=await fetch(aep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('HTTP '+r.status)),{status:r.status});return j}
+function adopt(p){S.user=p.username;S.nickname=p.nick||'';S.name=p.nick||p.username;S.pic=p.pic||null;S.email=p.email;S.since=p.since;
+  const d=p.data;if(d&&typeof d==='object'){const D=DEF();for(const k of SYNC){if(d[k]===undefined||typeof d[k]!==typeof D[k]||Array.isArray(d[k])!==Array.isArray(D[k]))continue;S[k]=k==='eq'?Object.assign(D.eq,d.eq):d[k]}}
+  applyTheme();applyCosmetics()}
+function resetLocal(){Object.assign(S,DEF());S.user=null;S.token=null;S.name='guest';S.pic=null;S.nickname='';S.email='';save();applyTheme();applyCosmetics()}
 function secAccount(el){
-  let mode='in';
+  let mode='in',busy=false;
   const login=u=>{const a=getAcc()[u]||{};S.user=u;S.name=a.nick||u;S.pic=a.pic||null;save();draw()};
+  function readPic(f,cb){
+    if(!f||!/^image\//.test(f.type))return toast('Pick an image file');
+    if(f.size>8e6)return toast('That image is too large (max 8 MB)');
+    const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=192;const sq=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-sq)/2,(im.height-sq)/2,sq,sq,0,0,192,192);cb(c.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Couldn’t read that image');im.src=r.result};r.onerror=()=>toast('Couldn’t read that file');r.readAsDataURL(f)}
   function auth(){
-    const up=mode==='up';
+    const up=mode==='up',sv=!!aep();
     el.innerHTML=`<div class="glow"></div><div class="auth"><div class="authc"><h1>${up?'Create account':'Welcome back'}</h1><p class="sub">${up?'It takes about ten seconds.':'Sign in to pick up where you left off.'}</p>
     <div class="seg" id="am"><button data-m="in" class="${up?'':'on'}">Sign in</button><button data-m="up" class="${up?'on':''}">Sign up</button></div>
     <form id="af3" novalidate>
@@ -656,54 +673,67 @@ function secAccount(el){
     ${up?'<label>Email<input class="in" id="ae" type="email" autocomplete="email"></label>':''}
     <label>Password<span class="pw"><input class="in" id="ap" type="password" autocomplete="${up?'new-password':'current-password'}"><button type="button" id="sp" class="btn ghost">Show</button></span></label>
     ${up?'<div class="meter"><i id="mt"></i></div><label>Confirm password<input class="in" id="ac" type="password" autocomplete="new-password"></label>':''}
-    <p class="err" id="er" role="alert"></p><button class="btn" style="width:100%;justify-content:center">${up?'Create account':'Sign in'}</button></form>
-    <p class="sub" style="margin:14px 0 0;font-size:13px">${up?'Accounts are saved in this browser on this device. Nothing is sent anywhere.':'Forgot your password? Accounts live on this device only, so it can’t be recovered. You can create a new one.'}</p></div></div>`;
+    <p class="err" id="er" role="alert"></p><button class="btn" id="sbm" style="width:100%;justify-content:center">${up?'Create account':'Sign in'}</button></form>
+    <p class="sub" style="margin:14px 0 0;font-size:13px">${sv?(up?'Your account works on every link that uses this sign-in server.':'Use the account you made on any of your links.'):'Accounts are saved in this browser on this link only. To sign in on every link, set up the account server in Settings.'}</p></div></div>`;
     $('#am',el).onclick=e=>{const b=e.target.closest('[data-m]');if(b){mode=b.dataset.m;auth()}};
     $('#sp',el).onclick=()=>{const p=$('#ap',el),h=p.type==='password';p.type=h?'text':'password';$('#sp',el).textContent=h?'Hide':'Show'};
     if(up)$('#ap',el).oninput=e=>{const v=e.target.value;let n=0;if(v.length>=8)n++;if(v.length>=12)n++;if(/[A-Z]/.test(v)&&/[a-z]/.test(v))n++;if(/\d/.test(v)&&/[^\w]/.test(v))n++;const m=$('#mt',el);m.style.width=n*25+'%';m.style.background=['#fb7185','#fb7185','#fbbf24','#a3e635','#5eead4'][n]};
-    $('#af3',el).onsubmit=async e=>{e.preventDefault();
+    $('#af3',el).onsubmit=async e=>{e.preventDefault();if(busy)return;
       const err=m=>{const x=$('#er',el);x.textContent=m;x.classList.remove('shake');void x.offsetWidth;x.classList.add('shake')};
-      const u=$('#au',el).value.trim().toLowerCase(),p=$('#ap',el).value,A=getAcc();
-      if(up){const em=$('#ae',el).value.trim().toLowerCase();
+      const u=$('#au',el).value.trim().toLowerCase(),p=$('#ap',el).value,em=up?$('#ae',el).value.trim().toLowerCase():'';
+      if(up){
         if(!/^[a-z0-9_]{3,20}$/.test(u))return err('Username: 3 to 20 letters, numbers or underscores.');
         if(!/^\S+@\S+\.\S+$/.test(em))return err('Enter a valid email address.');
         if(p.length<8)return err('Password needs at least 8 characters.');
         if(p!==$('#ac',el).value)return err('The passwords don’t match.');
+      }else if(!u||!p)return err('Enter your username and password.');
+      if(sv){
+        busy=true;$('#sbm',el).disabled=true;
+        try{const j=up?await api({action:'signup',username:u,email:em,password:p,data:snap()}):await api({action:'login',id:u,password:p});
+          S.token=j.token;adopt(j.profile);save();toast(up?'Account created':'Signed in');draw()}
+        catch(x){busy=false;if($('#sbm',el))$('#sbm',el).disabled=false;err(x.status?x.message:'Couldn’t reach the account server. Check the link in Settings.')}
+        return}
+      const A=getAcc();
+      if(up){
         if(A[u])return err('That username is taken.');
         if(Object.values(A).some(a=>a.email===em))return err('That email is already in use.');
         const salt=Math.random().toString(36).slice(2)+Date.now().toString(36);
         A[u]={email:em,salt,hash:await hashPw(p,salt),since:Date.now()};setAcc(A);toast('Account created');login(u)}
-      else{if(!u||!p)return err('Enter your username and password.');if(Date.now()<lock)return err('Too many tries. Wait a few seconds.');
+      else{if(Date.now()<lock)return err('Too many tries. Wait a few seconds.');
         const k=A[u]?u:Object.keys(A).find(x=>A[x].email===u);
         if(!k||(await hashPw(p,A[k].salt))!==A[k].hash){if(++fails>=5){lock=Date.now()+30000;fails=0}return err('Wrong username or password.')}
         fails=0;toast('Signed in');login(k)}}}
-  function readPic(f,cb){
-    if(!f||!/^image\//.test(f.type))return toast('Pick an image file');
-    if(f.size>8e6)return toast('That image is too large (max 8 MB)');
-    const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=192;const sq=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-sq)/2,(im.height-sq)/2,sq,sq,0,0,192,192);cb(c.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Couldn’t read that image');im.src=r.result};r.onerror=()=>toast('Couldn’t read that file');r.readAsDataURL(f)}
   function prof(){
-    const A=getAcc(),a=A[S.user]||{};
-    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><div class="prof"><button class="pavb fr-${esc((S.eq&&S.eq.frame)||'none')}" id="pb" aria-label="Change profile picture" title="Change profile picture">${a.pic?`<img class="pav" alt="" src="${a.pic}">`:`<span class="pav">${esc((a.nick||S.user)[0].toUpperCase())}</span>`}</button><input type="file" id="pf" accept="image/*" hidden><div><h1 style="margin:0">${nameHtml(a.nick||S.user)}</h1><p class="sub" style="margin:0">@${esc(S.user)} · ${esc(a.email||'')}</p><p class="sub" style="margin:0;font-size:13px">Member since ${a.since?new Date(a.since).toLocaleDateString():'today'}</p></div></div>
+    const sv=!!(aep()&&S.token),A=getAcc(),a=sv?{nick:S.nickname,pic:S.pic,email:S.email,since:S.since}:(A[S.user]||{});
+    const upd=p=>api({action:'update',token:S.token,...p});
+    const fail=x=>{if(x.status===401){resetLocal();toast('Signed out');draw()}else toast(x.message||'Couldn’t save')};
+    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><div class="prof"><button class="pavb fr-${esc((S.eq&&S.eq.frame)||'none')}" id="pb" aria-label="Change profile picture" title="Change profile picture">${a.pic?`<img class="pav" alt="" src="${a.pic}">`:`<span class="pav">${esc((a.nick||S.user)[0].toUpperCase())}</span>`}</button><input type="file" id="pf" accept="image/*" hidden><div><h1 style="margin:0">${nameHtml(a.nick||S.user)}</h1><p class="sub" style="margin:0">@${esc(S.user)} · ${esc(a.email||'')}</p><p class="sub" style="margin:0;font-size:13px">Member since ${a.since?new Date(a.since).toLocaleDateString():'today'}${sv?' · synced across your links':''}</p></div></div>
     <div class="row" style="margin-top:8px"><button class="btn ghost" id="pc">Upload photo</button>${a.pic?'<button class="btn ghost" id="pr">Remove photo</button>':''}</div>
     <form class="row" id="nk" style="margin:18px 0"><input class="in" id="nki" maxlength="20" placeholder="Nickname" value="${esc(a.nick||'')}" style="flex:1" aria-label="Nickname"><button class="btn">Save nickname</button></form>
     <div class="bento" style="grid-template-columns:repeat(3,1fr);margin:0 0 22px"><div class="card"><h3>${S.coins}</h3><p>Coins</p></div><div class="card"><h3>${S.hs.snake}</h3><p>Best snake</p></div><div class="card"><h3>${S.watch.filter(w=>w.d).length}/${S.watch.length}</h3><p>Movies watched</p></div></div>
-    <div class="row"><button class="btn" id="so">Sign out</button><button class="btn ghost" id="dl">Delete account</button></div><p class="sub" style="font-size:13px">Your photo and nickname are saved on this device only. Click your photo to change it.</p></div>`;
-    const pick=()=>$('#pf',el).click();
-    $('#pb',el).onclick=pick;$('#pc',el).onclick=pick;
-    $('#pf',el).onchange=e=>readPic(e.target.files[0],d=>{const B=getAcc();if(!B[S.user])return;B[S.user].pic=d;setAcc(B);S.pic=d;save();toast('Photo updated');prof()});
-    if($('#pr',el))$('#pr',el).onclick=()=>{const B=getAcc();delete B[S.user].pic;setAcc(B);S.pic=null;save();toast('Photo removed');prof()};
-    $('#nk',el).onsubmit=e=>{e.preventDefault();const v=$('#nki',el).value.trim().replace(/\s+/g,' ').slice(0,20),B=getAcc();
-      if(v)B[S.user].nick=v;else delete B[S.user].nick;setAcc(B);S.name=v||S.user;save();toast(v?'Nickname saved':'Nickname removed');prof()};
-    $('#so',el).onclick=()=>{S.user=null;S.name='guest';S.pic=null;save();toast('Signed out');draw()};
-    $('#dl',el).onclick=()=>{const b=$('#dl',el);if(!b.dataset.s){b.textContent='Click again to confirm';b.dataset.s=1;return}const B=getAcc();delete B[S.user];setAcc(B);S.user=null;S.name='guest';S.pic=null;save();draw()};
+    <div class="row"><button class="btn" id="so">Sign out</button><button class="btn ghost" id="dl">Delete account</button></div><p class="sub" style="font-size:13px">${sv?'Your account, photo and progress are saved on the account server.':'Your photo and nickname are saved on this device only.'}</p></div>`;
+    const pick=()=>$('#pf',el).click();$('#pb',el).onclick=pick;$('#pc',el).onclick=pick;
+    $('#pf',el).onchange=e=>readPic(e.target.files[0],d=>{
+      if(sv){S.pic=d;save();upd({pic:d}).then(()=>{toast('Photo updated');prof()}).catch(fail)}
+      else{const B=getAcc();if(!B[S.user])return;B[S.user].pic=d;setAcc(B);S.pic=d;save();toast('Photo updated');prof()}});
+    if($('#pr',el))$('#pr',el).onclick=()=>{
+      if(sv){S.pic=null;save();upd({pic:''}).then(()=>{toast('Photo removed');prof()}).catch(fail)}
+      else{const B=getAcc();delete B[S.user].pic;setAcc(B);S.pic=null;save();toast('Photo removed');prof()}};
+    $('#nk',el).onsubmit=e=>{e.preventDefault();const v=$('#nki',el).value.trim().replace(/\s+/g,' ').slice(0,20);
+      if(sv){S.nickname=v;S.name=v||S.user;save();upd({nick:v}).then(()=>{toast(v?'Nickname saved':'Nickname removed');prof()}).catch(fail)}
+      else{const B=getAcc();if(v)B[S.user].nick=v;else delete B[S.user].nick;setAcc(B);S.name=v||S.user;save();toast(v?'Nickname saved':'Nickname removed');prof()}};
+    const out=()=>{if(sv){resetLocal()}else{S.user=null;S.name='guest';S.pic=null;save()}draw()};
+    $('#so',el).onclick=()=>{if(sv)api({action:'logout',token:S.token}).catch(()=>{});toast('Signed out');out()};
+    $('#dl',el).onclick=()=>{const b=$('#dl',el);if(!b.dataset.s){b.textContent='Click again to confirm';b.dataset.s=1;return}
+      if(sv)api({action:'delete',token:S.token}).catch(()=>{});else{const B=getAcc();delete B[S.user];setAcc(B)}out()};
   }
-  function draw(){if(S.user&&getAcc()[S.user])prof();else{S.user=null;auth()}}
+  function draw(){if(signed())prof();else{S.user=null;auth()}}
   draw();
 }
 function secSettings(el){
   const r=()=>{const tg=(k,l)=>`<div class="item"><span class="g">${l}</span><button class="tog ${S[k]?'on':''}" data-k="${k}" role="switch" aria-checked="${!!S[k]}" aria-label="${l}"></button></div>`;
-    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><h1>Settings</h1><p class="sub">Changes apply right away.</p><div class="list">${tg('anim','Animations')}${tg('h24','24-hour clock')}</div><h3 style="margin:22px 0 10px;font:600 17px 'Space Grotesk'">Accent color</h3><div class="row">${S.own.map(c=>`<button class="sw ${S.acc===c?'on':''}" data-c="${c}" style="width:56px;padding:8px" aria-label="Accent ${c}"><i style="background:${c};margin:0"></i></button>`).join('')}</div><p class="sub">More colors are in the Shop.</p><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Launch</h3><p class="sub" style="margin-bottom:10px">Open Lumen in an about:blank tab. Your browser may ask you to allow pop-ups first.</p><button class="btn" id="ab">Open in about:blank</button><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">AI connection</h3><p class="sub" style="margin-bottom:10px">Paste your Claude proxy URL to power the AI section on this site. Leave blank to use the built-in connection when there is one.</p><div class="row"><input class="in" id="aiu" placeholder="https://your-worker.workers.dev" value="${esc(S.aiUrl||'')}" style="flex:1" aria-label="AI endpoint URL"><button class="btn" id="aisv">Save</button></div></div>`};r();
-  el.onclick=e=>{if(e.target.closest('#ab'))return launchBlank();if(e.target.closest('#aisv')){const v=$('#aiu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.aiUrl=v;save();return toast('Saved')}const k=e.target.closest('[data-k]'),c=e.target.closest('[data-c]');if(k)S[k.dataset.k]=!S[k.dataset.k];if(c)S.acc=c.dataset.c;if(k||c){save();applyTheme();r()}};
+    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><h1>Settings</h1><p class="sub">Changes apply right away.</p><div class="list">${tg('anim','Animations')}${tg('h24','24-hour clock')}</div><h3 style="margin:22px 0 10px;font:600 17px 'Space Grotesk'">Accent color</h3><div class="row">${S.own.map(c=>`<button class="sw ${S.acc===c?'on':''}" data-c="${c}" style="width:56px;padding:8px" aria-label="Accent ${c}"><i style="background:${c};margin:0"></i></button>`).join('')}</div><p class="sub">More colors are in the Shop.</p><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Launch</h3><p class="sub" style="margin-bottom:10px">Open Lumen in an about:blank tab. Your browser may ask you to allow pop-ups first.</p><button class="btn" id="ab">Open in about:blank</button><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">AI connection</h3><p class="sub" style="margin-bottom:10px">Paste your Claude proxy URL to power the AI section on this site. Leave blank to use the built-in connection when there is one.</p><div class="row"><input class="in" id="aiu" placeholder="https://your-worker.workers.dev" value="${esc(S.aiUrl||'')}" style="flex:1" aria-label="AI endpoint URL"><button class="btn" id="aisv">Save</button></div><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Account server</h3><p class="sub" style="margin-bottom:10px">Paste your account server URL so one sign-in works on every link. Sign out first if you change it.</p><div class="row"><input class="in" id="acu" placeholder="https://your-auth.workers.dev" value="${esc(S.authUrl||'')}" style="flex:1" aria-label="Account server URL"><button class="btn" id="acsv">Save</button></div></div>`};r();
+  el.onclick=e=>{if(e.target.closest('#ab'))return launchBlank();if(e.target.closest('#acsv')){const v=$('#acu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.authUrl=v;save();return toast('Saved')}if(e.target.closest('#aisv')){const v=$('#aiu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.aiUrl=v;save();return toast('Saved')}const k=e.target.closest('[data-k]'),c=e.target.closest('[data-c]');if(k)S[k.dataset.k]=!S[k.dataset.k];if(c)S.acc=c.dataset.c;if(k||c){save();applyTheme();r()}};
 }
 
 (function(){const cv=document.getElementById('bg'),x=cv.getContext('2d'),rm=matchMedia('(prefers-reduced-motion:reduce)'),R=Math.random;let W=0,H=0,cur=[94,234,212],last=0,tm=0,mode='aurora';
@@ -737,6 +767,7 @@ function frame(t){const on=S.anim&&!rm.matches,dt=Math.min(.05,(t-last)/1000||0)
  on?requestAnimationFrame(frame):setTimeout(()=>requestAnimationFrame(frame),500)}
 requestAnimationFrame(frame)})();
 renderDock();applyTheme();applyCosmetics();show();
+if(S.token&&aep())api({action:'me',token:S.token}).then(r=>{adopt(r.profile);try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}const t=tabs.find(x=>x.id===cur);if(t&&(t.k==='home'||(t.k==='sec'&&t.key==='account')))show()}).catch(e=>{if(e.status===401){resetLocal();show()}});
 </script>
 </body>
 </html>
