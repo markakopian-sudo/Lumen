@@ -200,7 +200,7 @@ canvas{max-width:100%;border-radius:16px;background:rgba(0,0,0,.4);border:1px so
 .meter{height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin:-4px 0 12px;overflow:hidden}.meter i{display:block;height:100%;width:0;transition:width .35s var(--ease),background .3s}
 .err{color:#fb7185;min-height:22px;font-size:14px}.err.shake{animation:shake .4s}
 @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
-.prof{display:flex;align-items:center;gap:18px}.pav{width:72px;height:72px;border-radius:50%;background:var(--acc);color:#07110f;display:grid;place-items:center;font:700 30px "Space Grotesk";animation:pop .5s var(--ease)}
+.prof{display:flex;align-items:center;gap:18px}.pavb{position:relative;flex:none;border-radius:50%;width:84px;height:84px;transition:transform .35s var(--ease)}.pavb:hover{transform:scale(1.06)}.pavb:after{content:'Change';position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:13px;display:grid;place-items:center;opacity:0;transition:opacity .25s}.pavb:hover:after,.pavb:focus-visible:after{opacity:1}img.pav{object-fit:cover}.pav{width:84px;height:84px;border-radius:50%;background:var(--acc);color:#07110f;display:grid;place-items:center;font:700 30px "Space Grotesk";animation:pop .5s var(--ease)}
 @media(max-width:900px){.dc{grid-template-columns:200px 1fr}.dcsrv,.dcmem{display:none}}
 @media(max-width:700px){.dc{grid-template-columns:1fr;grid-template-rows:auto 1fr}.dcch{flex-direction:row;overflow-x:auto;padding:6px}.dcch h4,.dcch small,.dcme{display:none}.dcch>button{flex:none}}
 
@@ -479,7 +479,7 @@ function secChat(el){
     $('#gc',el).onclick=()=>openSec('account');return;
   }
   el.style.padding='0';
-  const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,av=n=>`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(n[0].toUpperCase())}</span>`;
+  const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,av=n=>n===S.name&&S.pic?`<img class="av" alt="" src="${S.pic}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(n[0].toUpperCase())}</span>`;
   el.innerHTML=`<div class="dc"><div class="dcintro" id="dci"><div class="dcl">${'Lumen Chat'.split('').map((c,i)=>`<span style="--d:${i*80}ms">${c===' '?'&nbsp;':c}</span>`).join('')}</div><p>Tap to skip</p></div>
   <div class="dcsrv"><button aria-label="Lumen server">L</button></div>
   <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme">${av(S.name)}<b>${esc(S.name)}</b></div></div>
@@ -559,7 +559,7 @@ async function hashPw(p,salt){const t=salt+':'+p;if(window.crypto&&crypto.subtle
 let fails=0,lock=0;
 function secAccount(el){
   let mode='in';
-  const login=u=>{S.user=u;S.name=u;save();draw()};
+  const login=u=>{const a=getAcc()[u]||{};S.user=u;S.name=a.nick||u;S.pic=a.pic||null;save();draw()};
   function auth(){
     const up=mode==='up';
     el.innerHTML=`<div class="glow"></div><div class="auth"><div class="authc"><h1>${up?'Create account':'Welcome back'}</h1><p class="sub">${up?'It takes about ten seconds.':'Sign in to pick up where you left off.'}</p>
@@ -590,13 +590,25 @@ function secAccount(el){
         const k=A[u]?u:Object.keys(A).find(x=>A[x].email===u);
         if(!k||(await hashPw(p,A[k].salt))!==A[k].hash){if(++fails>=5){lock=Date.now()+30000;fails=0}return err('Wrong username or password.')}
         fails=0;toast('Signed in');login(k)}}}
+  function readPic(f,cb){
+    if(!f||!/^image\//.test(f.type))return toast('Pick an image file');
+    if(f.size>8e6)return toast('That image is too large (max 8 MB)');
+    const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=192;const sq=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-sq)/2,(im.height-sq)/2,sq,sq,0,0,192,192);cb(c.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Couldn’t read that image');im.src=r.result};r.onerror=()=>toast('Couldn’t read that file');r.readAsDataURL(f)}
   function prof(){
-    const a=getAcc()[S.user]||{};
-    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><div class="prof"><span class="pav">${esc(S.user[0].toUpperCase())}</span><div><h1 style="margin:0">${esc(S.user)}</h1><p class="sub" style="margin:0">${esc(a.email||'')} · member since ${a.since?new Date(a.since).toLocaleDateString():'today'}</p></div></div>
-    <div class="bento" style="grid-template-columns:repeat(3,1fr);margin:22px 0"><div class="card"><h3>${S.coins}</h3><p>Coins</p></div><div class="card"><h3>${S.hs.snake}</h3><p>Best snake</p></div><div class="card"><h3>${S.watch.filter(w=>w.d).length}/${S.watch.length}</h3><p>Movies watched</p></div></div>
-    <div class="row"><button class="btn" id="so">Sign out</button><button class="btn ghost" id="dl">Delete account</button></div><p class="sub" style="font-size:13px">Coins, scores and your watchlist stay on this device.</p></div>`;
-    $('#so',el).onclick=()=>{S.user=null;S.name='guest';save();toast('Signed out');draw()};
-    $('#dl',el).onclick=()=>{const b=$('#dl',el);if(!b.dataset.s){b.textContent='Click again to confirm';b.dataset.s=1;return}const A=getAcc();delete A[S.user];setAcc(A);S.user=null;S.name='guest';save();draw()};
+    const A=getAcc(),a=A[S.user]||{};
+    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><div class="prof"><button class="pavb" id="pb" aria-label="Change profile picture" title="Change profile picture">${a.pic?`<img class="pav" alt="" src="${a.pic}">`:`<span class="pav">${esc((a.nick||S.user)[0].toUpperCase())}</span>`}</button><input type="file" id="pf" accept="image/*" hidden><div><h1 style="margin:0">${esc(a.nick||S.user)}</h1><p class="sub" style="margin:0">@${esc(S.user)} · ${esc(a.email||'')}</p><p class="sub" style="margin:0;font-size:13px">Member since ${a.since?new Date(a.since).toLocaleDateString():'today'}</p></div></div>
+    <div class="row" style="margin-top:8px"><button class="btn ghost" id="pc">Upload photo</button>${a.pic?'<button class="btn ghost" id="pr">Remove photo</button>':''}</div>
+    <form class="row" id="nk" style="margin:18px 0"><input class="in" id="nki" maxlength="20" placeholder="Nickname" value="${esc(a.nick||'')}" style="flex:1" aria-label="Nickname"><button class="btn">Save nickname</button></form>
+    <div class="bento" style="grid-template-columns:repeat(3,1fr);margin:0 0 22px"><div class="card"><h3>${S.coins}</h3><p>Coins</p></div><div class="card"><h3>${S.hs.snake}</h3><p>Best snake</p></div><div class="card"><h3>${S.watch.filter(w=>w.d).length}/${S.watch.length}</h3><p>Movies watched</p></div></div>
+    <div class="row"><button class="btn" id="so">Sign out</button><button class="btn ghost" id="dl">Delete account</button></div><p class="sub" style="font-size:13px">Your photo and nickname are saved on this device only. Click your photo to change it.</p></div>`;
+    const pick=()=>$('#pf',el).click();
+    $('#pb',el).onclick=pick;$('#pc',el).onclick=pick;
+    $('#pf',el).onchange=e=>readPic(e.target.files[0],d=>{const B=getAcc();if(!B[S.user])return;B[S.user].pic=d;setAcc(B);S.pic=d;save();toast('Photo updated');prof()});
+    if($('#pr',el))$('#pr',el).onclick=()=>{const B=getAcc();delete B[S.user].pic;setAcc(B);S.pic=null;save();toast('Photo removed');prof()};
+    $('#nk',el).onsubmit=e=>{e.preventDefault();const v=$('#nki',el).value.trim().replace(/\s+/g,' ').slice(0,20),B=getAcc();
+      if(v)B[S.user].nick=v;else delete B[S.user].nick;setAcc(B);S.name=v||S.user;save();toast(v?'Nickname saved':'Nickname removed');prof()};
+    $('#so',el).onclick=()=>{S.user=null;S.name='guest';S.pic=null;save();toast('Signed out');draw()};
+    $('#dl',el).onclick=()=>{const b=$('#dl',el);if(!b.dataset.s){b.textContent='Click again to confirm';b.dataset.s=1;return}const B=getAcc();delete B[S.user];setAcc(B);S.user=null;S.name='guest';S.pic=null;save();draw()};
   }
   function draw(){if(S.user&&getAcc()[S.user])prof();else{S.user=null;auth()}}
   draw();
