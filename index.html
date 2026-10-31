@@ -329,8 +329,12 @@ function earn(n,raw){if(n<=0)return;const g=raw?n:Math.max(n,Math.round(n*mult()
 const NAME_STYLES=['plain','glow','grad','gold','rainbow'],BADGES=['🌟','🔥','🚀','🌙','🎮','🦄','👑','💎'];
 const initial=n=>{const m=[...String(n||'')].find(c=>/[\p{L}\p{N}]/u.test(c));return(m||String(n||'?')[0]||'?').toUpperCase()};
 const reservedTag=s=>/[\(\[\{<（［｛【]\s*(dev|developer|admin|administrator|owner|mod|moderator|staff|creator|founder)\s*[\)\]\}>）］｝】]/i.test(String(s).normalize('NFKC').replace(/[\u200B-\u200F\u2060\uFEFF]/g,''));
-const badge=b=>{b=b===undefined?(S.eq&&S.eq.badge):b;return BADGES.includes(b)?b+' ':''};
-const nameHtml=(n,st,bd)=>{st=st===undefined?(S.eq&&S.eq.name):st;if(!NAME_STYLES.includes(st))st='plain';return `${esc(badge(bd))}<span class="nm nm-${st}">${esc(n)}</span>`};
+const PRIV_ONLY={name:['gold'],badge:['👑','💎']};
+const isPriv=()=>['dev','admin'].includes(S.rank);
+const okStyle=x=>!PRIV_ONLY.name.includes(x)||isPriv();
+const okBadge=x=>!PRIV_ONLY.badge.includes(x)||isPriv();
+const badge=b=>{b=b===undefined?((S.eq&&okBadge(S.eq.badge))?S.eq.badge:''):b;return BADGES.includes(b)?b+' ':''};
+const nameHtml=(n,st,bd)=>{st=st===undefined?((S.eq&&okStyle(S.eq.name))?S.eq.name:'plain'):st;if(!NAME_STYLES.includes(st))st='plain';return `${esc(badge(bd))}<span class="nm nm-${st}">${esc(n)}</span>`};
 const fontLinked={};
 function loadFont(f){if(f==='dm'||f==='Mrs Saint Delafield'||fontLinked[f])return;fontLinked[f]=1;const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+encodeURIComponent(f).replace(/%20/g,'+')+'&display=swap';document.head.appendChild(l)}
 function applyCosmetics(){const e=S.eq||{};const f=e.font==='dm'||!e.font?'DM Sans':e.font,g=e.sig||'Mrs Saint Delafield';loadFont(f);loadFont(g);
@@ -777,12 +781,12 @@ function secChat(el){
   else cap('room').then(r=>{room=r;if(!$('#cs',el))return;
     if(!r){setSt('Offline · only you see messages');return}
     setSt('● Live');
-    offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now(),s:NAME_STYLES.includes(d.s)?d.s:'plain',b:BADGES.includes(d.b)?d.b:''})}))});
+    offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now(),s:NAME_STYLES.includes(d.s)&&d.s!=='gold'?d.s:'plain',b:BADGES.includes(d.b)&&!PRIV_ONLY.badge.includes(d.b)?d.b:''})}))});
   $('#cf',el).onsubmit=async e=>{e.preventDefault();const i=$('#cinp',el),v=i.value.trim();if(!v)return;i.value='';
-    if(live){try{const j=await api({action:'chat_send',token:S.token,channel:ch,text:v,style:(S.eq&&S.eq.name)||'plain',badge:(S.eq&&S.eq.badge)||''});
+    if(live){try{const j=await api({action:'chat_send',token:S.token,channel:ch,text:v,style:(S.eq&&okStyle(S.eq.name)&&S.eq.name)||'plain',badge:(S.eq&&okBadge(S.eq.badge)&&S.eq.badge)||''});
         if(!seen.has(j.msg.id)){seen.add(j.msg.id);push(ch,j.msg)}}
       catch(x){if(x.status===401){resetLocal();toast('Signed out');return openSec('account')}toast(x.message||'Message not sent')}return}
-    push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&S.eq.name)||'plain',b:(S.eq&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
+    push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&okStyle(S.eq.name)&&S.eq.name)||'plain',b:(S.eq&&okBadge(S.eq.badge)&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
   return()=>{tm.forEach(clearTimeout);clearTimeout(iv);document.removeEventListener('visibilitychange',vis);document.removeEventListener('lumen-friends',onFr);closeCtx();document.removeEventListener('click',closeCtx);document.removeEventListener('keydown',ctxKey);window.removeEventListener('blur',closeCtx);offs.forEach(f=>{try{f&&f()}catch(e){}})};
 }
 
@@ -861,7 +865,7 @@ function secShop(el){
   let cat='colors';
   const owned=(c,id,p)=>c==='colors'?S.own.includes(id):(p===0||(S.items||[]).includes(c+':'+id));
   const isOn=(c,id)=>c==='colors'?S.acc===id:c==='fx'?(S.eq.fx||[]).includes(id):c==='boost'?false:S.eq[c]===id;
-  const list=c=>c==='colors'?COLORS.map(([n,h,p])=>[h,n,p,'Accent color']):ITEMS[c];
+  const list=c=>c==='colors'?COLORS.map(([n,h,p])=>[h,n,p,'Accent color']):ITEMS[c].filter(it=>isPriv()||!(PRIV_ONLY[c]||[]).includes(it[0]));
   const pv=(c,id,n)=>{
     if(c==='colors')return`<i style="display:block;width:100%;height:100%;border-radius:12px;background:${id}"></i>`;
     if(c==='bg')return`<i style="display:block;width:100%;height:100%;border-radius:12px;background:${BGPV[id]}"></i>`;
@@ -885,7 +889,7 @@ function secShop(el){
   el.onclick=e=>{
     const k=e.target.closest('[data-k]');if(k){cat=k.dataset.k;return draw()}
     if(e.target.closest('#gift')){S.gift=Date.now();save();earn(15,true);return draw()}
-    const b=e.target.closest('[data-id]');if(!b||b.disabled)return;const id=b.dataset.id,it=list(cat).find(x=>x[0]===id),p=it[2];
+    const b=e.target.closest('[data-id]');if(!b||b.disabled)return;const id=b.dataset.id,it=list(cat).find(x=>x[0]===id);if(!it)return;const p=it[2];
     if(!owned(cat,id,p)){if(S.coins<p)return toast('Need '+(p-S.coins)+' more coins');S.coins-=p;if(cat==='colors')S.own.push(id);else S.items.push(cat+':'+id);toast('Bought '+it[1])}
     if(cat==='colors')S.acc=id;
     else if(cat==='fx'){const f=S.eq.fx||[];S.eq.fx=f.includes(id)&&owned(cat,id,p)&&isOn(cat,id)?f.filter(x=>x!==id):[...new Set([...f,id])]}
