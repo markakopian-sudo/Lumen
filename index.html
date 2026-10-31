@@ -300,6 +300,8 @@ async function copyText(t){
 }
 function earn(n,raw){if(n<=0)return;const g=raw?n:Math.max(n,Math.round(n*mult()));S.coins+=g;save();applyTheme();const c=$('#coins');c.classList.add('pop');setTimeout(()=>c.classList.remove('pop'),300);toast('+'+g+' coins'+(!raw&&g>n?' (boosted)':''))}
 const NAME_STYLES=['plain','glow','grad','gold','rainbow'],BADGES=['🌟','🔥','🚀','🌙','🎮','🦄','👑','💎'];
+const initial=n=>{const m=[...String(n||'')].find(c=>/[\p{L}\p{N}]/u.test(c));return(m||String(n||'?')[0]||'?').toUpperCase()};
+const reservedTag=s=>/[\(\[\{<（［｛【]\s*(dev|developer|admin|administrator|owner|mod|moderator|staff|creator|founder)\s*[\)\]\}>）］｝】]/i.test(String(s).normalize('NFKC').replace(/[\u200B-\u200F\u2060\uFEFF]/g,''));
 const badge=b=>{b=b===undefined?(S.eq&&S.eq.badge):b;return BADGES.includes(b)?b+' ':''};
 const nameHtml=(n,st,bd)=>{st=st===undefined?(S.eq&&S.eq.name):st;if(!NAME_STYLES.includes(st))st='plain';return `${esc(badge(bd))}<span class="nm nm-${st}">${esc(n)}</span>`};
 const fontLinked={};
@@ -434,11 +436,13 @@ function readPicFile(f,cb){
   const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=192;const sq=Math.min(im.width,im.height);c.getContext('2d').drawImage(im,(im.width-sq)/2,(im.height-sq)/2,sq,sq,0,0,192,192);cb(c.toDataURL('image/jpeg',.85))};im.onerror=()=>toast('Couldn’t read that image');im.src=r.result};r.onerror=()=>toast('Couldn’t read that file');r.readAsDataURL(f)}
 async function saveProfile(p){
   if(aep()&&S.token){
+    await api({action:'update',token:S.token,...p});
     if(p.nick!==undefined){S.nickname=p.nick;S.name=p.nick||S.user}
     if(p.bio!==undefined)S.bio=p.bio;
     if(p.pic!==undefined)S.pic=p.pic||null;
-    save();await api({action:'update',token:S.token,...p});
+    save();
   }else{
+    if(p.nick&&reservedTag(p.nick))throw new Error('Developer tags need the account server and a developer code.');
     const B=getAcc(),a=B[S.user];if(!a)return;
     if(p.nick!==undefined){if(p.nick)a.nick=p.nick;else delete a.nick;S.name=p.nick||S.user}
     if(p.bio!==undefined){if(p.bio)a.bio=p.bio;else delete a.bio;S.bio=p.bio}
@@ -457,7 +461,7 @@ function profileModal(done){
   document.body.appendChild(o);
   const $o=s=>o.querySelector(s),close=()=>{o.classList.add('out');setTimeout(()=>o.remove(),220)};
   $o('#mnk').value=a.nick||'';$o('#mbio').value=a.bio||'';
-  const pv=()=>{$o('#mpv').innerHTML=pic?`<img class="pav" alt="" src="${pic}" style="width:64px;height:64px">`:`<span class="pav" style="width:64px;height:64px;font-size:26px">${esc(((a.nick||S.user||'?')[0]).toUpperCase())}</span>`;$o('#mpr').style.display=pic?'':'none'};pv();
+  const pv=()=>{$o('#mpv').innerHTML=pic?`<img class="pav" alt="" src="${pic}" style="width:64px;height:64px">`:`<span class="pav" style="width:64px;height:64px;font-size:26px">${esc(initial(a.nick||S.user||'?'))}</span>`;$o('#mpr').style.display=pic?'':'none'};pv();
   const cnt=()=>{$o('#mcnt').textContent=$o('#mbio').value.length+' / 160'};cnt();$o('#mbio').oninput=cnt;
   $o('#mpu').onclick=()=>$o('#mpf').click();$o('#mpr').onclick=()=>{pic='';pv()};
   $o('#mpf').onchange=e=>readPicFile(e.target.files[0],d=>{pic=d;pv()});
@@ -471,7 +475,7 @@ function profileModal(done){
 async function userCard(u){
   try{const j=await api({action:'user_card',token:S.token,username:u}),c=j.card,h=[...c.username].reduce((q,ch)=>q+ch.charCodeAt(0)*13,0)%360;
     const o=document.createElement('div');o.className='modal';
-    o.innerHTML=`<div class="mbox" style="text-align:center"><span class="av" style="width:64px;height:64px;font-size:26px;margin:0 auto 10px;background:hsl(${h} 55% 48%)">${esc(((c.nick||c.username)[0]).toUpperCase())}</span><h3>${nameHtml(c.nick||c.username,'plain','')}</h3><p class="sub" style="margin:0 0 12px">@${esc(c.username)}</p><p id="ucb" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><p class="sub" style="font-size:12px;margin:12px 0 0">Member since ${c.since?new Date(c.since).toLocaleDateString():'recently'}</p><button class="btn" id="ucx" style="margin-top:14px">Close</button></div>`;
+    o.innerHTML=`<div class="mbox" style="text-align:center">${c.pic&&/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(c.pic)?`<img class="av" alt="" src="${c.pic}" style="width:64px;height:64px;margin:0 auto 10px;display:block;object-fit:cover">`:`<span class="av" style="width:64px;height:64px;font-size:26px;margin:0 auto 10px;background:hsl(${h} 55% 48%)">${esc(initial(c.nick||c.username))}</span>`}<h3>${nameHtml(c.nick||c.username,'plain','')}</h3><p class="sub" style="margin:0 0 12px">@${esc(c.username)}</p><p id="ucb" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><p class="sub" style="font-size:12px;margin:12px 0 0">Member since ${c.since?new Date(c.since).toLocaleDateString():'recently'}</p><button class="btn" id="ucx" style="margin-top:14px">Close</button></div>`;
     document.body.appendChild(o);o.querySelector('#ucb').textContent=c.bio||'No bio yet.';
     const close=()=>{o.classList.add('out');setTimeout(()=>o.remove(),220)};o.querySelector('#ucx').onclick=close;o.onclick=e=>{if(e.target===o)close()};
   }catch(e){toast(e.message||'Couldn’t load profile')}
@@ -582,9 +586,9 @@ function secChat(el){
     $('#gc',el).onclick=()=>openSec('account');return;
   }
   el.style.padding='0';
-  const skipIntro=window.__noIntro;window.__noIntro=false;
+  const skipIntro=window.__noIntro;window.__noIntro=false;const PIC={};
   const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,
-   av=(n,own)=>(own===undefined?n===S.name:own)&&S.pic?`<img class="av" alt="" src="${S.pic}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(n[0].toUpperCase())}</span>`;
+   av=(n,own,u)=>{const p=(own===undefined?n===S.name:own)?S.pic:(u&&PIC[u]);return p?`<img class="av" alt="" src="${esc(p)}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(initial(n))}</span>`};
   el.innerHTML=`<div class="dc"><div class="dcintro" id="dci"><div class="dcl">${'Lumen Chat'.split('').map((c,i)=>`<span style="--d:${i*80}ms">${c===' '?'&nbsp;':c}</span>`).join('')}</div><p>Tap to skip</p></div>
   <div class="dcsrv"><button aria-label="Lumen server">L</button></div>
   <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme" id="meb" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div></div>
@@ -597,7 +601,7 @@ function secChat(el){
     if(m.sys){d.className='dcm sys';d.textContent=m.t}
     else{const own=m.u?m.u===S.user:m.n===S.name,styled=(m.s&&m.s!=='plain')||BADGES.includes(m.b);
       const nm=(own&&!m.u)?`<b>${nameHtml(m.n)}</b>`:(own||styled)?`<b>${nameHtml(m.n,m.s,m.b)}</b>`:`<b style="color:hsl(${hue(m.n)} 70% 72%)">${esc(m.n)}</b>`;
-      d.className='dcm';d.dataset.u=m.u||(own?S.user:'');d.innerHTML=`${av(m.n,own)}<div>${nm}<time>${esc(m.tm||new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time><p></p></div>`;$('p',d).textContent=m.t}
+      d.className='dcm';d.dataset.u=m.u||(own?S.user:'');d.innerHTML=`${av(m.n,own,m.u)}<div>${nm}<time>${esc(m.tm||new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time><p></p></div>`;$('p',d).textContent=m.t}
     msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
   const draw=()=>{msgs.innerHTML='';if(!list[ch].length)list[ch].push({sys:1,t:'This is the start of #'+ch+'.'});list[ch].forEach(row)};
   const push=(c,m)=>{if(!list[c])return;list[c].push(m);if(c===ch)row(m)};
@@ -612,9 +616,9 @@ function secChat(el){
   async function poll(){
     if(!live||polling||document.hidden||!el.isConnected)return sched();
     polling=true;const c=ch;
-    try{const j=await api({action:'chat_poll',token:S.token,channel:c,since:lastTs[c]||0});let n=0;
+    try{const j=await api({action:'chat_poll',token:S.token,channel:c,since:lastTs[c]||0,have:Object.keys(PIC)});let n=0,np=0;if(j.pics)for(const[u,p]of Object.entries(j.pics)){PIC[u]=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p||'')?p:'';np++}
       (j.msgs||[]).forEach(m=>{lastTs[c]=Math.max(lastTs[c]||0,m.ts);if(!seen.has(m.id)){seen.add(m.id);push(c,m);n++}});
-      quiet=n?0:Math.min(quiet+1,10);setSt('● Live');recent()}
+      quiet=n?0:Math.min(quiet+1,10);setSt('● Live');if(np)draw();recent()}
     catch(e){if(e.status===401){polling=false;resetLocal();toast('Signed out');return openSec('account')}setSt('Reconnecting…')}
     polling=false;sched()}
   function sched(){clearTimeout(iv);if(live&&el.isConnected)iv=setTimeout(poll,quiet>6?8000:3500)}
@@ -645,9 +649,10 @@ function secVMs(el){
    open:a=>{if(!a)return'open: give a URL';go(a);return'Opening '+a},
    neofetch:()=>`${S.name}@lumen\n----------\nCoins: ${S.coins}\nTabs: ${tabs.length}\nBest snake: ${S.hs.snake}\nBrowser: ${navigator.userAgent.split(' ').pop()}`,
    addcoins:a=>{const n=parseInt(a,10);if(!Number.isFinite(n)||n<=0||n>1e9)return'usage: addcoins <amount>';earn(n,true);return'Added '+n+' coins. Balance: '+S.coins},
+   devcode:a=>{if(!(aep()&&S.token))return'devcode: sign in with the account server first';if(!a)return'usage: devcode <code>';return api({action:'redeem',token:S.token,code:a}).then(()=>{S.dev=true;return'Developer access granted. You can now use a (Dev) tag in your nickname.'}).catch(e=>e.message||'Failed')},
    clear:()=>{to.innerHTML='';return null}};
   ti.onkeydown=e=>{
-    if(e.key==='Enter'){const v=ti.value;ti.value='';say('$ '+v);if(v.trim()){H.push(v);hp=H.length;const[c,...r]=v.trim().split(/\s+/);const f=C[c];const o=f?f(r.join(' ')):c+': command not found';if(o!==null)say(o)}}
+    if(e.key==='Enter'){const v=ti.value;ti.value='';const sec=/^\s*devcode\b/i.test(v);say('$ '+(sec?'devcode ••••••':v));if(v.trim()){if(!sec){H.push(v);hp=H.length}const[c,...r]=v.trim().split(/\s+/);const f=C[c];const o=f?f(r.join(' ')):c+': command not found';Promise.resolve(o).then(t=>{if(t!==null)say(t)})}}
     else if(e.key==='ArrowUp'&&hp>0){ti.value=H[--hp];e.preventDefault()}
     else if(e.key==='ArrowDown'){ti.value=H[++hp]||'';hp=Math.min(hp,H.length)}};
   tm.onclick=()=>ti.focus();
@@ -737,7 +742,7 @@ const DEF=()=>({coins:0,hs:{snake:0,mem:0},items:[],eq:{bg:'aurora',font:'dm',si
 const snap=()=>{const o={};SYNC.forEach(k=>o[k]=S[k]);return o};
 const signed=()=>!!(S.user&&(S.token||getAcc()[S.user]));
 async function api(b){const r=await fetch(aep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('HTTP '+r.status)),{status:r.status});return j}
-function adopt(p){S.user=p.username;S.bio=p.bio||'';S.nickname=p.nick||'';S.name=p.nick||p.username;S.pic=p.pic||null;S.email=p.email;S.since=p.since;
+function adopt(p){S.user=p.username;S.bio=p.bio||'';S.dev=!!p.dev;S.nickname=p.nick||'';S.name=p.nick||p.username;S.pic=p.pic||null;S.email=p.email;S.since=p.since;
   const d=p.data;if(d&&typeof d==='object'){const D=DEF();for(const k of SYNC){if(d[k]===undefined||typeof d[k]!==typeof D[k]||Array.isArray(d[k])!==Array.isArray(D[k]))continue;S[k]=k==='eq'?Object.assign(D.eq,d.eq):d[k]}}
   applyTheme();applyCosmetics()}
 function resetLocal(){Object.assign(S,DEF());S.user=null;S.token=null;S.name='guest';S.pic=null;S.nickname='';S.bio='';S.email='';save();applyTheme();applyCosmetics()}
@@ -791,7 +796,7 @@ function secAccount(el){
     const sv=!!(aep()&&S.token),A=getAcc(),a=sv?{nick:S.nickname,bio:S.bio,pic:S.pic,email:S.email,since:S.since}:(A[S.user]||{});
     const upd=p=>api({action:'update',token:S.token,...p});
     const fail=x=>{if(x.status===401){resetLocal();toast('Signed out');draw()}else toast(x.message||'Couldn’t save')};
-    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><div class="prof"><button class="pavb fr-${esc((S.eq&&S.eq.frame)||'none')}" id="pb" aria-label="Change profile picture" title="Change profile picture">${a.pic?`<img class="pav" alt="" src="${a.pic}">`:`<span class="pav">${esc((a.nick||S.user)[0].toUpperCase())}</span>`}</button><input type="file" id="pf" accept="image/*" hidden><div><h1 style="margin:0">${nameHtml(a.nick||S.user)}</h1><p class="sub" style="margin:0">@${esc(S.user)} · ${esc(a.email||'')}</p><p class="sub" style="margin:0;font-size:13px">Member since ${a.since?new Date(a.since).toLocaleDateString():'today'}${sv?' · synced across your links':''}</p><p style="margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">${a.bio?esc(a.bio):'<span class="sub">No bio yet.</span>'}</p></div></div>
+    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><div class="prof"><button class="pavb fr-${esc((S.eq&&S.eq.frame)||'none')}" id="pb" aria-label="Change profile picture" title="Change profile picture">${a.pic?`<img class="pav" alt="" src="${a.pic}">`:`<span class="pav">${esc(initial(a.nick||S.user))}</span>`}</button><input type="file" id="pf" accept="image/*" hidden><div><h1 style="margin:0">${nameHtml(a.nick||S.user)}</h1><p class="sub" style="margin:0">@${esc(S.user)} · ${esc(a.email||'')}</p><p class="sub" style="margin:0;font-size:13px">Member since ${a.since?new Date(a.since).toLocaleDateString():'today'}${sv?' · synced across your links':''}</p><p style="margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">${a.bio?esc(a.bio):'<span class="sub">No bio yet.</span>'}</p></div></div>
     <div class="row" style="margin-top:8px"><button class="btn ghost" id="pe">Edit profile</button><button class="btn ghost" id="pc">Upload photo</button>${a.pic?'<button class="btn ghost" id="pr">Remove photo</button>':''}</div>
     <form class="row" id="nk" style="margin:18px 0"><input class="in" id="nki" maxlength="20" placeholder="Nickname" value="${esc(a.nick||'')}" style="flex:1" aria-label="Nickname"><button class="btn">Save nickname</button></form>
     <div class="bento" style="grid-template-columns:repeat(3,1fr);margin:0 0 22px"><div class="card"><h3>${S.coins}</h3><p>Coins</p></div><div class="card"><h3>${S.hs.snake}</h3><p>Best snake</p></div><div class="card"><h3>${S.watch.filter(w=>w.d).length}/${S.watch.length}</h3><p>Movies watched</p></div></div>
@@ -805,8 +810,8 @@ function secAccount(el){
       if(sv){S.pic=null;save();upd({pic:''}).then(()=>{toast('Photo removed');prof()}).catch(fail)}
       else{const B=getAcc();delete B[S.user].pic;setAcc(B);S.pic=null;save();toast('Photo removed');prof()}};
     $('#nk',el).onsubmit=e=>{e.preventDefault();const v=$('#nki',el).value.trim().replace(/\s+/g,' ').slice(0,20);
-      if(sv){S.nickname=v;S.name=v||S.user;save();upd({nick:v}).then(()=>{toast(v?'Nickname saved':'Nickname removed');prof()}).catch(fail)}
-      else{const B=getAcc();if(v)B[S.user].nick=v;else delete B[S.user].nick;setAcc(B);S.name=v||S.user;save();toast(v?'Nickname saved':'Nickname removed');prof()}};
+      if(sv){upd({nick:v}).then(()=>{S.nickname=v;S.name=v||S.user;save();toast(v?'Nickname saved':'Nickname removed');prof()}).catch(fail)}
+      else{if(v&&reservedTag(v))return toast('Developer tags need the account server and a developer code.');const B=getAcc();if(v)B[S.user].nick=v;else delete B[S.user].nick;setAcc(B);S.name=v||S.user;save();toast(v?'Nickname saved':'Nickname removed');prof()}};
     const out=()=>{if(sv){resetLocal()}else{S.user=null;S.name='guest';S.pic=null;save()}draw()};
     $('#so',el).onclick=()=>{if(sv)api({action:'logout',token:S.token}).catch(()=>{});toast('Signed out');out()};
     $('#dl',el).onclick=()=>{const b=$('#dl',el);if(!b.dataset.s){b.textContent='Click again to confirm';b.dataset.s=1;return}
