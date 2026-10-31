@@ -713,6 +713,13 @@ function secChat(el){
   /* ---- friends view ---- */
   const frRow=(p,btns)=>`<div class="item">${av(p.nick||p.username,false,p.username)}<span class="g">${nameHtml(p.nick||p.username,'plain','')} <small class="sub">@${esc(p.username)}</small> ${rkPill(p.rank)}</span>${btns}</div>`;
   const btnFor=p=>p.status==='friend'?'<button class="btn ghost" disabled>Friends</button>':p.status==='sent'?'<button class="btn ghost" disabled>Request sent</button>':`<button class="btn" data-ad="${esc(p.username)}">${p.status==='incoming'?'Accept':'Add friend'}</button>`;
+  async function loadPics(users,done){
+    for(let i=0;i<users.length;i+=12){
+      try{const j=await api({action:'user_pics',token:S.token,users:users.slice(i,i+12)});let got=false;
+        for(const[u,p]of Object.entries(j.pics||{})){PIC[u]=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p||'')?p:'';got=true}
+        if(got&&el.isConnected)done()}catch(e){return}
+    }
+  }
   async function renderFriends(){
     if(!live){msgs.innerHTML='<div class="empty" style="margin:24px">Friends need an account on the account server. Sign in there to use them.</div>';return}
     msgs.innerHTML=`<div class="frp"><div class="seg" id="frt"><button data-t="all">Friends</button><button data-t="pending">Pending<span id="pc2"></span></button><button data-t="add">Add friend</button></div><div id="frbody"></div></div>`;
@@ -724,14 +731,17 @@ function secChat(el){
       $('#frs2',el).onsubmit=async e=>{e.preventDefault();const q=$('#frq',el).value.trim(),res=$('#frres',el);
         if(q.length<2){res.innerHTML='<div class="empty">Type at least 2 characters.</div>';return}
         res.innerHTML='<div class="empty">Searching…</div>';
-        try{const j=await api({action:'user_search',token:S.token,q});res.innerHTML=j.results.length?j.results.map(p=>frRow(p,btnFor(p))).join(''):'<div class="empty">No one found. Try a username or nickname.</div>'}
+        try{const j=await api({action:'user_search',token:S.token,q});const show=()=>{res.innerHTML=j.results.length?j.results.map(p=>frRow(p,btnFor(p))).join(''):'<div class="empty">No one found. Try a username or nickname.</div>'};show();if(j.results.length)loadPics(j.results.map(p=>p.username).filter(u=>!(u in PIC)),show)}
         catch(x){res.innerHTML='<div class="empty">'+esc(x.message||'Search failed')+'</div>'}};
       return}
     let d;try{d=await api({action:'friend_list',token:S.token})}catch(x){if($('#frbody',el))$('#frbody',el).innerHTML='<div class="empty">Couldn’t load your friends.</div>';return}
     if(view!=='friends'||frTab==='add'||!el.isConnected)return;
     FR.count=d.incoming.length;setBadge(FR.count);lastCnt=FR.count;
-    if(frTab==='all')body.innerHTML=d.friends.length?`<h4 class="fh">All friends — ${d.friends.length}</h4><div class="list">${d.friends.map(p=>frRow(p,`<button class="btn ghost" data-pr="${esc(p.username)}">Profile</button><button class="btn ghost" data-rm="${esc(p.username)}">Remove</button>`)).join('')}</div>`:'<div class="empty">No friends yet. Open “Add friend” to find people.</div>';
-    else body.innerHTML=`<h4 class="fh">Incoming — ${d.incoming.length}</h4><div class="list">${d.incoming.length?d.incoming.map(p=>frRow(p,`<button class="btn" data-ac="${esc(p.username)}">Accept</button><button class="btn ghost" data-rj="${esc(p.username)}">Reject</button>`)).join(''):'<div class="empty">No incoming requests.</div>'}</div><h4 class="fh">Sent — ${d.outgoing.length}</h4><div class="list">${d.outgoing.length?d.outgoing.map(p=>frRow(p,`<button class="btn ghost" data-cn="${esc(p.username)}">Cancel</button>`)).join(''):'<div class="empty">No pending requests you sent.</div>'}</div>`;
+    const paint=()=>{const bd=$('#frbody',el);if(!bd||view!=='friends'||frTab==='add')return;
+      if(frTab==='all')bd.innerHTML=d.friends.length?`<h4 class="fh">All friends — ${d.friends.length}</h4><div class="list">${d.friends.map(p=>frRow(p,`<button class="btn ghost" data-pr="${esc(p.username)}">Profile</button><button class="btn ghost" data-rm="${esc(p.username)}">Remove</button>`)).join('')}</div>`:'<div class="empty">No friends yet. Open “Add friend” to find people.</div>';
+      else bd.innerHTML=`<h4 class="fh">Incoming — ${d.incoming.length}</h4><div class="list">${d.incoming.length?d.incoming.map(p=>frRow(p,`<button class="btn" data-ac="${esc(p.username)}">Accept</button><button class="btn ghost" data-rj="${esc(p.username)}">Reject</button>`)).join(''):'<div class="empty">No incoming requests.</div>'}</div><h4 class="fh">Sent — ${d.outgoing.length}</h4><div class="list">${d.outgoing.length?d.outgoing.map(p=>frRow(p,`<button class="btn ghost" data-cn="${esc(p.username)}">Cancel</button>`)).join(''):'<div class="empty">No pending requests you sent.</div>'}</div>`};
+    paint();
+    loadPics([...new Set([...d.friends,...d.incoming,...d.outgoing].map(p=>p.username))].filter(u=>!(u in PIC)),paint);
   }
   async function friendClick(e){
     const t=e.target.closest('[data-t]');if(t){frTab=t.dataset.t;return renderFriends()}
