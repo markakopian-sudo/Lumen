@@ -278,6 +278,12 @@ textarea.in{display:block;width:100%;resize:vertical;font:inherit;margin-top:6px
 .ctx button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:6px;color:#dbdee1;text-align:left;font-size:14px;transition:background .15s,color .15s}
 .ctx button:hover{background:#4752c4;color:#fff}.ctx button.danger{color:#f23f42}.ctx button.danger:hover{background:#da373c;color:#fff}
 .dcm:not(.sys){transition:background .2s}
+
+.ann{display:flex;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(90deg,color-mix(in srgb,var(--acc) 30%,#000),rgba(0,0,0,.65));border-bottom:1px solid color-mix(in srgb,var(--acc) 50%,transparent);animation:annin .45s var(--ease);overflow:hidden;flex:none;max-height:140px}
+.ann .annl{font-weight:700;white-space:nowrap}.annt{flex:1;min-width:0;overflow-wrap:anywhere}.annb{color:var(--muted);white-space:nowrap}
+.ann button{width:28px;height:28px;border-radius:8px;color:var(--muted);display:grid;place-items:center;flex:none;transition:.2s}.ann button:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.ann.out{max-height:0;padding-top:0;padding-bottom:0;opacity:0;transition:max-height .25s,padding .25s,opacity .25s}
+@keyframes annin{from{opacity:0;transform:translateY(-100%)}}
 </style>
 </head>
 <body>
@@ -515,9 +521,20 @@ async function userCard(u){
   }catch(e){toast(e.message||'Couldn’t load profile')}
 }
 const FR={shown:new Set(),queue:[],open:false,count:0};
+function showAnn(a){
+  const old=document.getElementById('ann');
+  if(!a||a.id===S.annSeen){if(old)old.remove();return}
+  if(old&&old.dataset.id===a.id)return;
+  if(old)old.remove();
+  const d=document.createElement('div');d.id='ann';d.className='ann';d.dataset.id=a.id;d.setAttribute('role','status');
+  d.innerHTML=`<span class="annl">📢 Announcement</span><span class="annt"></span><small class="annb"></small><button type="button" aria-label="Dismiss announcement">${ic('x').replace('class="i"','class="i" style="width:16px;height:16px"')}</button>`;
+  d.querySelector('.annt').textContent=a.text;d.querySelector('.annb').textContent=a.by?'— '+a.by:'';
+  d.querySelector('button').onclick=()=>{S.annSeen=a.id;save();d.classList.add('out');setTimeout(()=>d.remove(),260)};
+  const m=document.querySelector('.main');if(m)m.insertBefore(d,m.firstChild);
+}
 async function friendTick(){
   if(!(aep()&&S.token)||document.hidden)return;
-  try{const j=await api({action:'notifs',token:S.token}),inc=j.incoming||[];FR.count=j.count||0;
+  try{const j=await api({action:'notifs',token:S.token}),inc=j.incoming||[];FR.count=j.count||0;if('announcement' in j)showAnn(j.announcement);
     inc.forEach(p=>{if(!FR.shown.has(p.username)&&!FR.queue.some(x=>x.username===p.username))FR.queue.push(p)});
     document.dispatchEvent(new Event('lumen-friends'));showNextFriend()}
   catch(e){}
@@ -807,6 +824,8 @@ function secVMs(el){
      if(S.dev&&!code)return give();
      if(!code||!(aep()&&S.token))return'Access denied.';
      return api({action:'redeem',token:S.token,code}).then(()=>{S.dev=true;save();return give()+' Developer access granted.'}).catch(e=>e.status===429?e.message:'Access denied.')},
+   announce:a=>{const t=String(a).trim();if(!t)return'usage: announce <message>   (or: announce clear)';if(!(aep()&&S.token))return'Access denied.';const clr=t.toLowerCase()==='clear';
+     return api({action:'announce',token:S.token,text:clr?'':t,clear:clr}).then(j=>{if(clr){showAnn(null);return'Announcement cleared.'}showAnn(j.announcement);return'Announcement sent to everyone.'}).catch(e=>e.message||'Failed')},
    setrank:a=>{const[p,rk]=String(a).trim().split(/\s+/);if(!p||!['admin','mod','member'].includes(rk))return'usage: setrank <username> <admin|mod|member>';if(!(aep()&&S.token))return'Access denied.';return api({action:'set_rank',token:S.token,username:p,rank:rk}).then(()=>p+' is now '+rk+'.').catch(e=>e.message||'Failed')},
    devcode:a=>{if(!(aep()&&S.token))return'devcode: sign in with the account server first';if(!a)return'usage: devcode <code>';return api({action:'redeem',token:S.token,code:a}).then(()=>{S.dev=true;return'Developer access granted. You can now use a (Dev) tag in your nickname.'}).catch(e=>e.message||'Failed')},
    clear:()=>{to.innerHTML='';return null}};
@@ -1020,7 +1039,7 @@ function frame(t){const on=S.anim&&!rm.matches,dt=Math.min(.05,(t-last)/1000||0)
  on?requestAnimationFrame(frame):setTimeout(()=>requestAnimationFrame(frame),500)}
 requestAnimationFrame(frame)})();
 renderDock();applyTheme();applyCosmetics();show();
-setInterval(friendTick,20000);setTimeout(friendTick,2500);document.addEventListener('visibilitychange',()=>{if(!document.hidden)friendTick()});
+setInterval(friendTick,20000);setTimeout(friendTick,2500);if(aep())api({action:'announcement'}).then(j=>showAnn(j.announcement)).catch(()=>{});document.addEventListener('visibilitychange',()=>{if(!document.hidden)friendTick()});
 if(S.token&&aep())api({action:'me',token:S.token}).then(r=>{adopt(r.profile);try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}const t=tabs.find(x=>x.id===cur);if(t&&(t.k==='home'||(t.k==='sec'&&t.key==='account')))show()}).catch(e=>{if(e.status===401){resetLocal();show()}});
 </script>
 </body>
