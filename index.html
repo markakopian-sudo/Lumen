@@ -159,7 +159,7 @@ canvas{max-width:100%;border-radius:16px;background:rgba(0,0,0,.4);border:1px so
  .main{order:1}
 }
 
-.dc{display:grid;grid-template-columns:72px 230px 1fr 210px;height:100%;background:#313338;position:relative;overflow:hidden;font-family:"DM Sans",sans-serif}
+.dc{display:grid;grid-template-columns:72px 230px 1fr 240px;height:100%;background:#313338;position:relative;overflow:hidden;font-family:"DM Sans",sans-serif}
 .dcsrv{background:#1e1f22;padding:12px;display:flex;flex-direction:column;gap:8px;align-items:center}
 .dcsrv button{width:48px;height:48px;border-radius:24px;background:#5865f2;font:700 20px "Space Grotesk";color:#fff;transition:border-radius .25s var(--ease)}
 .dcsrv button:hover{border-radius:16px}
@@ -257,6 +257,22 @@ textarea.in{display:block;width:100%;resize:vertical;font:inherit;margin-top:6px
 @keyframes tw{50%{opacity:.35;transform:scale(.6) rotate(20deg)}}
 .dcsrv button.logo{background:none;padding:0;overflow:hidden}.dcsrv button.logo .lg{border-radius:0}
 .dcch h4{display:flex;align-items:center;gap:10px}
+
+.rk{display:inline-block;padding:1px 9px;border-radius:999px;font-size:11px;font-weight:600;color:var(--rc);background:color-mix(in srgb,var(--rc) 16%,transparent);border:1px solid color-mix(in srgb,var(--rc) 40%,transparent);vertical-align:middle}
+.dcmem{overflow-y:auto}
+.mycard{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:16px 10px;margin:0 0 14px;border-radius:16px;background:#232428;animation:pop .4s var(--ease)}
+.mycard .av{width:64px;height:64px;font-size:26px}.mcn{font-weight:600}
+.mcbio{font-size:13px;color:#b5bac1;max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap;margin:4px 0 8px}
+.mh{font-size:11px;font-weight:700;letter-spacing:.04em;padding:12px 8px 4px}
+.mrow{display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:8px;cursor:pointer;transition:background .2s}
+.mrow:hover{background:#35373c}.mrow .av{width:30px;height:30px;font-size:13px}
+.mn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frb{margin-left:auto;background:#f23f42;color:#fff;border-radius:10px;min-width:20px;padding:0 6px;font-size:12px;text-align:center}
+.frp{padding:16px}.frp .seg{background:#232428}.frp .item{background:#2b2d31;flex-wrap:wrap}.frp .err{flex-basis:100%;margin:0;min-height:0}
+.frp .av{width:34px;height:34px;font-size:14px}.fh{font:600 12px "DM Sans";color:#949ba4;letter-spacing:.04em;text-transform:uppercase;margin:14px 0 8px}
+.modal.frm{z-index:70;background:rgba(0,0,0,.65)}
+.frbox{width:min(340px,100%);min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-radius:28px}
+.frbio{margin-top:10px;max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--muted);font-size:14px}
 </style>
 </head>
 <body>
@@ -287,7 +303,7 @@ const ep=()=>AI_ENDPOINT||S.aiUrl||'';
 async function viaEp(h,signal){const res=await fetch(ep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:h}),signal});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.text||('HTTP '+res.status));return{text:j.text}}
 const cap=async n=>{try{return window.claude?await window.claude.use(n):null}catch(e){return null}};
 
-let S={name:'guest',coins:0,acc:'#5eead4',own:['#5eead4'],anim:true,h24:false,watch:[],links:[],hs:{snake:0,mem:0},user:null,gl:null,items:[],eq:{bg:'aurora',font:'dm',sig:'Mrs Saint Delafield',name:'plain',badge:'none',frame:'none',fx:[]},gift:0};
+let S={name:'guest',coins:0,acc:'#5eead4',own:['#5eead4'],anim:true,h24:false,watch:[],links:[],hs:{snake:0,mem:0},user:null,gl:null,acceptReq:true,rank:'member',items:[],eq:{bg:'aurora',font:'dm',sig:'Mrs Saint Delafield',name:'plain',badge:'none',frame:'none',fx:[]},gift:0};
 try{Object.assign(S,JSON.parse(localStorage.getItem('lumen')||'{}'))}catch(e){}
 let syncT=null;
 const save=()=>{try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}
@@ -481,10 +497,33 @@ function profileModal(done){
 async function userCard(u){
   try{const j=await api({action:'user_card',token:S.token,username:u}),c=j.card,h=[...c.username].reduce((q,ch)=>q+ch.charCodeAt(0)*13,0)%360;
     const o=document.createElement('div');o.className='modal';
-    o.innerHTML=`<div class="mbox" style="text-align:center">${c.pic&&/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(c.pic)?`<img class="av" alt="" src="${c.pic}" style="width:64px;height:64px;margin:0 auto 10px;display:block;object-fit:cover">`:`<span class="av" style="width:64px;height:64px;font-size:26px;margin:0 auto 10px;background:hsl(${h} 55% 48%)">${esc(initial(c.nick||c.username))}</span>`}<h3>${nameHtml(c.nick||c.username,'plain','')}</h3><p class="sub" style="margin:0 0 12px">@${esc(c.username)}</p><p id="ucb" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><p class="sub" style="font-size:12px;margin:12px 0 0">Member since ${c.since?new Date(c.since).toLocaleDateString():'recently'}</p><button class="btn" id="ucx" style="margin-top:14px">Close</button></div>`;
+    o.innerHTML=`<div class="mbox" style="text-align:center">${c.pic&&/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(c.pic)?`<img class="av" alt="" src="${c.pic}" style="width:64px;height:64px;margin:0 auto 10px;display:block;object-fit:cover">`:`<span class="av" style="width:64px;height:64px;font-size:26px;margin:0 auto 10px;background:hsl(${h} 55% 48%)">${esc(initial(c.nick||c.username))}</span>`}<h3>${nameHtml(c.nick||c.username,'plain','')}</h3><p class="sub" style="margin:0 0 8px">@${esc(c.username)}</p>${rkPill(c.rank)}<p id="ucb" style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:10px"></p><p class="sub" style="font-size:12px;margin:12px 0 0">Member since ${c.since?new Date(c.since).toLocaleDateString():'recently'}</p><div class="row" style="justify-content:center;margin:14px 0 0"><button class="btn" id="ucf"></button><button class="btn ghost" id="ucx">Close</button></div></div>`;
     document.body.appendChild(o);o.querySelector('#ucb').textContent=c.bio||'No bio yet.';
     const close=()=>{o.classList.add('out');setTimeout(()=>o.remove(),220)};o.querySelector('#ucx').onclick=close;o.onclick=e=>{if(e.target===o)close()};
+    const fb=o.querySelector('#ucf'),lab={none:'Add friend',incoming:'Accept request',sent:'Request sent',friend:'Friends'};
+    if(c.status==='self')fb.style.display='none';else{fb.textContent=lab[c.status]||'Add friend';if(c.status==='sent'||c.status==='friend'){fb.disabled=true;fb.className='btn ghost'}}
+    fb.onclick=async()=>{fb.disabled=true;try{const r=await api({action:'friend_request',token:S.token,to:c.username});toast(r.status==='friend'?'You are now friends':'Request sent');friendTick();close()}catch(x){fb.disabled=false;toast(x.message||'Couldn’t send the request')}};
   }catch(e){toast(e.message||'Couldn’t load profile')}
+}
+const FR={shown:new Set(),queue:[],open:false,count:0};
+async function friendTick(){
+  if(!(aep()&&S.token)||document.hidden)return;
+  try{const j=await api({action:'notifs',token:S.token}),inc=j.incoming||[];FR.count=j.count||0;
+    inc.forEach(p=>{if(!FR.shown.has(p.username)&&!FR.queue.some(x=>x.username===p.username))FR.queue.push(p)});
+    document.dispatchEvent(new Event('lumen-friends'));showNextFriend()}
+  catch(e){}
+}
+function showNextFriend(){
+  if(FR.open||!FR.queue.length||!(aep()&&S.token))return;
+  const p=FR.queue.shift();FR.open=true;
+  const h=[...p.username].reduce((q,c)=>q+c.charCodeAt(0)*13,0)%360,okp=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p.pic||'');
+  const o=document.createElement('div');o.className='modal frm';
+  o.innerHTML=`<div class="mbox frbox" role="dialog" aria-label="Friend request"><p class="sub" style="margin:0 0 14px;font-size:13px">Friend request</p>${okp?`<img class="av" alt="" src="${p.pic}" style="width:84px;height:84px;margin:0 auto 10px;display:block;object-fit:cover">`:`<span class="av" style="width:84px;height:84px;font-size:34px;margin:0 auto 10px;background:hsl(${h} 55% 48%)">${esc(initial(p.nick||p.username))}</span>`}<h3>${nameHtml(p.nick||p.username,'plain','')}</h3><p class="sub" style="margin:0 0 8px">@${esc(p.username)}</p>${rkPill(p.rank)}<p class="frbio" id="frbio"></p><p class="sub" style="font-size:13px;margin:10px 0 16px">wants to be your friend</p><div class="row" style="justify-content:center;margin:0"><button class="btn ghost" id="frr">Reject</button><button class="btn" id="fra">Approve</button></div></div>`;
+  document.body.appendChild(o);o.querySelector('#frbio').textContent=p.bio||'';
+  const done=async acc=>{o.querySelectorAll('button').forEach(b=>b.disabled=true);
+    try{await api({action:'friend_respond',token:S.token,from:p.username,accept:acc});toast(acc?'You are now friends with '+(p.nick||p.username):'Request rejected')}catch(x){toast(x.message||'Couldn’t update the request')}
+    FR.shown.add(p.username);o.classList.add('out');setTimeout(()=>{o.remove();FR.open=false;FR.count=Math.max(0,FR.count-1);document.dispatchEvent(new Event('lumen-friends'));showNextFriend()},220)};
+  o.querySelector('#frr').onclick=()=>done(false);o.querySelector('#fra').onclick=()=>done(true);o.querySelector('#fra').focus();
 }
 /* ---------- games ---------- */
 function secGames(el){
@@ -598,6 +637,9 @@ function chatLogo(sz){
   <text x="32" y="47" text-anchor="middle" font-family="'Mrs Saint Delafield','Brush Script MT',cursive" font-size="58" fill="#fff" filter="url(#lgg${n})" opacity=".9">L</text>
   <text x="32" y="47" text-anchor="middle" font-family="'Mrs Saint Delafield','Brush Script MT',cursive" font-size="58" fill="#fff">L</text>
   <path class="spk" d="M51 11l1.7 4.6 4.6 1.7-4.6 1.7L51 24l-1.7-4.6-4.6-1.7 4.6-1.7z" fill="#fff"/></svg></span>`}
+const RANKS={dev:['Developer','#fbbf24',0],admin:['Admin','#fb7185',1],mod:['Moderator','#34d399',2],member:['Member','#9aa3b2',3]};
+const rkOf=r=>RANKS[r]||RANKS.member;
+const rkPill=r=>`<span class="rk" style="--rc:${rkOf(r)[1]}">${rkOf(r)[0]}</span>`;
 const LOG={general:[],random:[],games:[]};
 function secChat(el){
   if(!signed()){
@@ -608,14 +650,32 @@ function secChat(el){
   const skipIntro=window.__noIntro;window.__noIntro=false;const PIC={};
   const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,
    av=(n,own,u)=>{const p=(own===undefined?n===S.name:own)?S.pic:(u&&PIC[u]);return p?`<img class="av" alt="" src="${esc(p)}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(initial(n))}</span>`};
+  const live=!!(aep()&&S.token),SV={general:[],random:[],games:[]},list=live?SV:LOG,lastTs={},seen=new Set();
+  let ch='general',view='chat',frTab='all',MEM=[],pollN=0,room=null,offs=[],tm=[],iv=null,quiet=0,polling=false,lastCnt=-1;
   el.innerHTML=`<div class="dc"><div class="dcintro" id="dci"><div class="dcl">${'Lumen Chat'.split('').map((c,i)=>`<span style="--d:${i*80}ms">${c===' '?'&nbsp;':c}</span>`).join('')}</div><p>Tap to skip</p></div>
   <div class="dcsrv"><button class="logo" aria-label="Lumen server">${chatLogo(48)}</button></div>
-  <div class="dcch"><h4>${chatLogo(28)}Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme" id="meb" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div></div>
-  <div class="dcmain"><div class="dchead"><i>#</i><b id="cn">general</b><span id="cs">Connecting…</span></div><div class="dcmsgs" id="cm"></div><form class="dcin" id="cf"><input id="cinp" placeholder="Message #general" aria-label="Message" autocomplete="off" maxlength="500"></form></div>
-  <div class="dcmem"><small>ONLINE</small><div class="dcm2" id="meb2" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div><div id="cml" class="sub" style="font-size:13px;margin:8px 0 0"></div></div></div>`;
-  const live=!!(aep()&&S.token),SV={general:[],random:[],games:[]},list=live?SV:LOG,lastTs={},seen=new Set();
-  let ch='general',room=null,offs=[],tm=[],iv=null,quiet=0,polling=false;
+  <div class="dcch"><h4>${chatLogo(28)}Lumen</h4>
+   <button type="button" id="frbtn"><i>👥</i>Friends<span class="frb" id="frb" hidden></span></button>
+   <small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}
+   <div class="dcme" id="meb" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div></div>
+  <div class="dcmain"><div class="dchead"><i id="chi">#</i><b id="cn">general</b><span id="cs">Connecting…</span></div><div class="dcmsgs" id="cm"></div><form class="dcin" id="cf"><input id="cinp" placeholder="Message #general" aria-label="Message" autocomplete="off" maxlength="500"></form></div>
+  <div class="dcmem"><div class="mycard" id="myc"></div><small id="mct">MEMBERS</small><div id="cml"></div></div></div>`;
   const msgs=$('#cm',el),now=()=>new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}),setSt=t=>{const s=$('#cs',el);if(s)s.textContent=t};
+  const edit=()=>profileModal(()=>{window.__noIntro=true;show()});
+  const setBadge=n=>{const b=$('#frb',el);if(!b)return;b.hidden=!n;b.textContent=n>9?'9+':n;const p=$('#pc2',el);if(p)p.textContent=n?' ('+n+')':''};
+  /* ---- right panel: my profile + members by rank ---- */
+  const renderMine=()=>{$('#myc',el).innerHTML=`<div>${av(S.name,true)}</div><div class="mcn">${nameHtml(S.name)}</div><div class="sub" style="font-size:12px;margin:0">@${esc(S.user)}</div>${rkPill(S.rank)}<p class="mcbio">${S.bio?esc(S.bio):'<span class="sub">No bio yet.</span>'}</p><button class="btn ghost" id="mce" type="button">Edit profile</button>`;$('#mce',el).onclick=edit};
+  const renderMembers=()=>{
+    const arr=MEM.map(m=>({...m}));
+    const me=arr.find(m=>m.u===S.user);if(me){me.n=S.name;me.r=S.rank||me.r}else arr.push({u:S.user,n:S.name,r:S.rank||'member'});
+    arr.sort((a,b)=>rkOf(a.r)[2]-rkOf(b.r)[2]||String(a.n).localeCompare(String(b.n)));
+    let h='',last='';
+    arr.forEach(m=>{const k=m.r in RANKS?m.r:'member';
+      if(k!==last){h+=`<div class="mh" style="color:${RANKS[k][1]}">${RANKS[k][0].toUpperCase()} — ${arr.filter(x=>(x.r in RANKS?x.r:'member')===k).length}</div>`;last=k}
+      h+=`<div class="mrow" data-u="${esc(m.u)}">${av(m.n,m.u===S.user,m.u)}<span class="mn"${k!=='member'?` style="color:${RANKS[k][1]}"`:''}>${esc(m.n)}</span></div>`});
+    $('#cml',el).innerHTML=h;$('#mct',el).textContent='MEMBERS — '+arr.length};
+  $('#cml',el).onclick=e=>{const r=e.target.closest('.mrow');if(!r)return;const u=r.dataset.u;if(u===S.user)return edit();if(live)userCard(u)};
+  /* ---- messages ---- */
   const row=m=>{const d=document.createElement('div');
     if(m.sys){d.className='dcm sys';d.textContent=m.t}
     else{const own=m.u?m.u===S.user:m.n===S.name,styled=(m.s&&m.s!=='plain')||BADGES.includes(m.b);
@@ -623,37 +683,83 @@ function secChat(el){
       d.className='dcm';d.dataset.u=m.u||(own?S.user:'');d.innerHTML=`${av(m.n,own,m.u)}<div>${nm}<time>${esc(m.tm||new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time><p></p></div>`;$('p',d).textContent=m.t}
     msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
   const draw=()=>{msgs.innerHTML='';if(!list[ch].length)list[ch].push({sys:1,t:'This is the start of #'+ch+'.'});list[ch].forEach(row)};
-  const push=(c,m)=>{if(!list[c])return;list[c].push(m);if(c===ch)row(m)};
-  const recent=()=>{const n=[...new Set(list[ch].filter(m=>m.u&&m.u!==S.user&&Date.now()-m.ts<9e5).map(m=>m.n))].slice(0,8);$('#cml',el).textContent=n.length?n.join(', ')+' active recently':'No one else active recently'};
-  draw();
-  const edit=()=>profileModal(()=>{window.__noIntro=true;show()});
-  $('#meb',el).onclick=edit;$('#meb2',el).onclick=edit;
-  msgs.onclick=e=>{const d=e.target.closest('.dcm[data-u]');if(!d||!e.target.closest('.av,b'))return;const u=d.dataset.u;if(!u)return;if(u===S.user)return edit();if(live)userCard(u)};
-  $('.dcch',el).onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;ch=b.dataset.c;$$('.dcch [data-c]',el).forEach(x=>x.classList.toggle('on',x===b));$('#cn',el).textContent=ch;$('#cinp',el).placeholder='Message #'+ch;msgs.classList.remove('swap');void msgs.offsetWidth;msgs.classList.add('swap');draw();if(live){quiet=0;poll()}};
+  const push=(c,m)=>{if(!list[c])return;list[c].push(m);if(c===ch&&view==='chat')row(m)};
+  /* ---- friends view ---- */
+  const frRow=(p,btns)=>`<div class="item">${av(p.nick||p.username,false,p.username)}<span class="g">${nameHtml(p.nick||p.username,'plain','')} <small class="sub">@${esc(p.username)}</small> ${rkPill(p.rank)}</span>${btns}</div>`;
+  const btnFor=p=>p.status==='friend'?'<button class="btn ghost" disabled>Friends</button>':p.status==='sent'?'<button class="btn ghost" disabled>Request sent</button>':`<button class="btn" data-ad="${esc(p.username)}">${p.status==='incoming'?'Accept':'Add friend'}</button>`;
+  async function renderFriends(){
+    if(!live){msgs.innerHTML='<div class="empty" style="margin:24px">Friends need an account on the account server. Sign in there to use them.</div>';return}
+    msgs.innerHTML=`<div class="frp"><div class="seg" id="frt"><button data-t="all">Friends</button><button data-t="pending">Pending<span id="pc2"></span></button><button data-t="add">Add friend</button></div><div id="frbody"></div></div>`;
+    $$('#frt button',el).forEach(b=>b.classList.toggle('on',b.dataset.t===frTab));setBadge(FR.count||0);
+    const body=$('#frbody',el);
+    if(frTab==='add'){
+      body.innerHTML=`<form class="row" id="frs2"><input class="in" id="frq" placeholder="Search a username or nickname" style="flex:1" maxlength="20" autocomplete="off" aria-label="Search people"><button class="btn">Search</button></form><div class="list" id="frres"></div>`;
+      $('#frq',el).focus();
+      $('#frs2',el).onsubmit=async e=>{e.preventDefault();const q=$('#frq',el).value.trim(),res=$('#frres',el);
+        if(q.length<2){res.innerHTML='<div class="empty">Type at least 2 characters.</div>';return}
+        res.innerHTML='<div class="empty">Searching…</div>';
+        try{const j=await api({action:'user_search',token:S.token,q});res.innerHTML=j.results.length?j.results.map(p=>frRow(p,btnFor(p))).join(''):'<div class="empty">No one found. Try a username or nickname.</div>'}
+        catch(x){res.innerHTML='<div class="empty">'+esc(x.message||'Search failed')+'</div>'}};
+      return}
+    let d;try{d=await api({action:'friend_list',token:S.token})}catch(x){if($('#frbody',el))$('#frbody',el).innerHTML='<div class="empty">Couldn’t load your friends.</div>';return}
+    if(view!=='friends'||frTab==='add'||!el.isConnected)return;
+    FR.count=d.incoming.length;setBadge(FR.count);lastCnt=FR.count;
+    if(frTab==='all')body.innerHTML=d.friends.length?`<h4 class="fh">All friends — ${d.friends.length}</h4><div class="list">${d.friends.map(p=>frRow(p,`<button class="btn ghost" data-pr="${esc(p.username)}">Profile</button><button class="btn ghost" data-rm="${esc(p.username)}">Remove</button>`)).join('')}</div>`:'<div class="empty">No friends yet. Open “Add friend” to find people.</div>';
+    else body.innerHTML=`<h4 class="fh">Incoming — ${d.incoming.length}</h4><div class="list">${d.incoming.length?d.incoming.map(p=>frRow(p,`<button class="btn" data-ac="${esc(p.username)}">Accept</button><button class="btn ghost" data-rj="${esc(p.username)}">Reject</button>`)).join(''):'<div class="empty">No incoming requests.</div>'}</div><h4 class="fh">Sent — ${d.outgoing.length}</h4><div class="list">${d.outgoing.length?d.outgoing.map(p=>frRow(p,`<button class="btn ghost" data-cn="${esc(p.username)}">Cancel</button>`)).join(''):'<div class="empty">No pending requests you sent.</div>'}</div>`;
+  }
+  async function friendClick(e){
+    const t=e.target.closest('[data-t]');if(t){frTab=t.dataset.t;return renderFriends()}
+    const pr=e.target.closest('[data-pr]');if(pr)return userCard(pr.dataset.pr);
+    const act=async(a,patch,msg)=>{try{await api({action:a,token:S.token,...patch});toast(msg);FR.shown.clear()}catch(x){toast(x.message||'Something went wrong')}friendTick();renderFriends()};
+    const rm=e.target.closest('[data-rm]');if(rm)return act('friend_remove',{user:rm.dataset.rm},'Friend removed');
+    const ac=e.target.closest('[data-ac]');if(ac)return act('friend_respond',{from:ac.dataset.ac,accept:true},'Friend added');
+    const rj=e.target.closest('[data-rj]');if(rj)return act('friend_respond',{from:rj.dataset.rj,accept:false},'Request rejected');
+    const cn=e.target.closest('[data-cn]');if(cn)return act('friend_cancel',{to:cn.dataset.cn},'Request cancelled');
+    const ad=e.target.closest('[data-ad]');
+    if(ad){ad.disabled=true;
+      try{const j=await api({action:'friend_request',token:S.token,to:ad.dataset.ad});ad.textContent=j.status==='friend'?'Friends':'Request sent';ad.className='btn ghost';toast(j.status==='friend'?'You are now friends':'Request sent')}
+      catch(x){ad.disabled=false;const r=ad.closest('.item');let p=r.querySelector('.err');if(!p){p=document.createElement('p');p.className='err';r.appendChild(p)}p.textContent=x.message||'Couldn’t send the request';toast(x.message||'Couldn’t send the request')}}
+  }
+  msgs.onclick=e=>{
+    if(view==='friends')return friendClick(e);
+    const d=e.target.closest('.dcm[data-u]');if(!d||!e.target.closest('.av,b'))return;const u=d.dataset.u;if(!u)return;if(u===S.user)return edit();if(live)userCard(u)};
+  const showView=()=>{const f=view==='friends';
+    $('#cf',el).hidden=f;$('#chi',el).textContent=f?'👥':'#';$('#cn',el).textContent=f?'Friends':ch;$('#frbtn',el).classList.toggle('on',f);
+    $$('.dcch [data-c]',el).forEach(x=>x.classList.toggle('on',!f&&x.dataset.c===ch));
+    msgs.classList.remove('swap');void msgs.offsetWidth;msgs.classList.add('swap');f?renderFriends():draw()};
+  $('.dcch',el).onclick=e=>{
+    if(e.target.closest('#frbtn')){view='friends';return showView()}
+    if(e.target.closest('#meb'))return edit();
+    const b=e.target.closest('[data-c]');if(!b)return;ch=b.dataset.c;view='chat';$('#cinp',el).placeholder='Message #'+ch;showView();if(live){quiet=0;poll()}};
+  const onFr=()=>{setBadge(FR.count||0);if(view==='friends'&&frTab!=='add'&&FR.count!==lastCnt)renderFriends();lastCnt=FR.count};
+  document.addEventListener('lumen-friends',onFr);
   const gone=()=>{const i=$('#dci',el);if(i&&!i.classList.contains('gone')){i.classList.add('gone');tm.push(setTimeout(()=>i.remove(),700))}};
   if(skipIntro)$('#dci',el).remove();else{tm.push(setTimeout(gone,2800));$('#dci',el).onclick=gone}
+  /* ---- polling ---- */
   async function poll(){
     if(!live||polling||document.hidden||!el.isConnected)return sched();
     polling=true;const c=ch;
-    try{const j=await api({action:'chat_poll',token:S.token,channel:c,since:lastTs[c]||0,have:Object.keys(PIC)});let n=0,np=0;if(j.pics)for(const[u,p]of Object.entries(j.pics)){PIC[u]=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p||'')?p:'';np++}
+    try{const j=await api({action:'chat_poll',token:S.token,channel:c,since:lastTs[c]||0,have:Object.keys(PIC),members:pollN%10===0});pollN++;
+      let n=0,np=0;if(j.pics)for(const[u,p]of Object.entries(j.pics)){PIC[u]=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p||'')?p:'';np++}
       (j.msgs||[]).forEach(m=>{lastTs[c]=Math.max(lastTs[c]||0,m.ts);if(!seen.has(m.id)){seen.add(m.id);push(c,m);n++}});
-      quiet=n?0:Math.min(quiet+1,10);setSt('● Live');if(np)draw();recent()}
+      if(j.members)MEM=j.members;
+      quiet=n?0:Math.min(quiet+1,10);setSt('● Live');if(np&&view==='chat')draw();if(np||j.members)renderMembers()}
     catch(e){if(e.status===401){polling=false;resetLocal();toast('Signed out');return openSec('account')}setSt('Reconnecting…')}
     polling=false;sched()}
   function sched(){clearTimeout(iv);if(live&&el.isConnected)iv=setTimeout(poll,quiet>6?8000:3500)}
   const vis=()=>{if(!document.hidden)poll()};
-  if(live){document.addEventListener('visibilitychange',vis);poll()}
+  renderMine();renderMembers();draw();setBadge(FR.count||0);
+  if(live){document.addEventListener('visibilitychange',vis);poll();friendTick()}
   else cap('room').then(r=>{room=r;if(!$('#cs',el))return;
     if(!r){setSt('Offline · only you see messages');return}
     setSt('● Live');
-    offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now(),s:NAME_STYLES.includes(d.s)?d.s:'plain',b:BADGES.includes(d.b)?d.b:''})}));
-    offs.push(r.onPeers(c=>{const n=Math.max(0,c.peers.length-1);$('#cml',el).textContent=n?n+(n===1?' other person':' other people')+' here':'No one else is here yet'}))});
+    offs.push(r.on('msg',m=>{if(m.isMe||!m.data)return;const d=m.data;push(String(d.c||'general'),{n:String(d.n||'guest').slice(0,20),t:String(d.t||'').slice(0,500),tm:now(),s:NAME_STYLES.includes(d.s)?d.s:'plain',b:BADGES.includes(d.b)?d.b:''})}))});
   $('#cf',el).onsubmit=async e=>{e.preventDefault();const i=$('#cinp',el),v=i.value.trim();if(!v)return;i.value='';
     if(live){try{const j=await api({action:'chat_send',token:S.token,channel:ch,text:v,style:(S.eq&&S.eq.name)||'plain',badge:(S.eq&&S.eq.badge)||''});
         if(!seen.has(j.msg.id)){seen.add(j.msg.id);push(ch,j.msg)}}
       catch(x){if(x.status===401){resetLocal();toast('Signed out');return openSec('account')}toast(x.message||'Message not sent')}return}
     push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&S.eq.name)||'plain',b:(S.eq&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
-  return()=>{tm.forEach(clearTimeout);clearTimeout(iv);document.removeEventListener('visibilitychange',vis);offs.forEach(f=>{try{f&&f()}catch(e){}})};
+  return()=>{tm.forEach(clearTimeout);clearTimeout(iv);document.removeEventListener('visibilitychange',vis);document.removeEventListener('lumen-friends',onFr);offs.forEach(f=>{try{f&&f()}catch(e){}})};
 }
 
 /* ---------- sandbox shell ---------- */
@@ -673,6 +779,7 @@ function secVMs(el){
      if(S.dev&&!code)return give();
      if(!code||!(aep()&&S.token))return'Access denied.';
      return api({action:'redeem',token:S.token,code}).then(()=>{S.dev=true;save();return give()+' Developer access granted.'}).catch(e=>e.status===429?e.message:'Access denied.')},
+   setrank:a=>{const[p,rk]=String(a).trim().split(/\s+/);if(!p||!['admin','mod','member'].includes(rk))return'usage: setrank <username> <admin|mod|member>';if(!(aep()&&S.token))return'Access denied.';return api({action:'set_rank',token:S.token,username:p,rank:rk}).then(()=>p+' is now '+rk+'.').catch(e=>e.message||'Failed')},
    devcode:a=>{if(!(aep()&&S.token))return'devcode: sign in with the account server first';if(!a)return'usage: devcode <code>';return api({action:'redeem',token:S.token,code:a}).then(()=>{S.dev=true;return'Developer access granted. You can now use a (Dev) tag in your nickname.'}).catch(e=>e.message||'Failed')},
    clear:()=>{to.innerHTML='';return null}};
   ti.onkeydown=e=>{
@@ -770,10 +877,10 @@ const DEF=()=>({coins:0,hs:{snake:0,mem:0},items:[],eq:{bg:'aurora',font:'dm',si
 const snap=()=>{const o={};SYNC.forEach(k=>o[k]=S[k]);return o};
 const signed=()=>!!(S.user&&(S.token||getAcc()[S.user]));
 async function api(b){const r=await fetch(aep(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('HTTP '+r.status)),{status:r.status});return j}
-function adopt(p){S.user=p.username;S.bio=p.bio||'';S.dev=!!p.dev;S.nickname=p.nick||'';S.name=p.nick||p.username;S.pic=p.pic||null;S.email=p.email;S.since=p.since;
+function adopt(p){S.user=p.username;S.bio=p.bio||'';S.dev=!!p.dev;S.rank=p.rank||'member';S.acceptReq=!p.noreq;S.nickname=p.nick||'';S.name=p.nick||p.username;S.pic=p.pic||null;S.email=p.email;S.since=p.since;
   const d=p.data;if(d&&typeof d==='object'){const D=DEF();for(const k of SYNC){if(d[k]===undefined||typeof d[k]!==typeof D[k]||Array.isArray(d[k])!==Array.isArray(D[k]))continue;S[k]=k==='eq'?Object.assign(D.eq,d.eq):d[k]}}
-  applyTheme();applyCosmetics()}
-function resetLocal(){Object.assign(S,DEF());S.user=null;S.token=null;S.name='guest';S.pic=null;S.nickname='';S.bio='';S.email='';save();applyTheme();applyCosmetics()}
+  applyTheme();applyCosmetics();setTimeout(()=>friendTick(),800)}
+function resetLocal(){Object.assign(S,DEF());S.user=null;S.token=null;S.name='guest';S.pic=null;S.nickname='';S.bio='';S.email='';S.rank='member';S.dev=false;FR.queue=[];FR.count=0;FR.shown.clear();save();applyTheme();applyCosmetics()}
 function secAccount(el){
   let mode='in',busy=false;
   const login=u=>{const a=getAcc()[u]||{};S.user=u;S.name=a.nick||u;S.pic=a.pic||null;S.bio=a.bio||'';save();draw()};
@@ -850,8 +957,8 @@ function secAccount(el){
 }
 function secSettings(el){
   const r=()=>{const tg=(k,l)=>`<div class="item"><span class="g">${l}</span><button class="tog ${S[k]?'on':''}" data-k="${k}" role="switch" aria-checked="${!!S[k]}" aria-label="${l}"></button></div>`;
-    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><h1>Settings</h1><p class="sub">Changes apply right away.</p><div class="list">${tg('anim','Animations')}${tg('h24','24-hour clock')}</div><h3 style="margin:22px 0 10px;font:600 17px 'Space Grotesk'">Accent color</h3><div class="row">${S.own.map(c=>`<button class="sw ${S.acc===c?'on':''}" data-c="${c}" style="width:56px;padding:8px" aria-label="Accent ${c}"><i style="background:${c};margin:0"></i></button>`).join('')}</div><p class="sub">More colors are in the Shop.</p><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Launch</h3><p class="sub" style="margin-bottom:10px">Open Lumen in an about:blank tab. Your browser may ask you to allow pop-ups first.</p><button class="btn" id="ab">Open in about:blank</button><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">AI connection</h3><p class="sub" style="margin-bottom:10px">Paste your Claude proxy URL to power the AI section on this site. Leave blank to use the built-in connection when there is one.</p><div class="row"><input class="in" id="aiu" placeholder="https://your-worker.workers.dev" value="${esc(S.aiUrl||'')}" style="flex:1" aria-label="AI endpoint URL"><button class="btn" id="aisv">Save</button></div><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Account server</h3><p class="sub" style="margin-bottom:10px">Paste your account server URL so one sign-in works on every link. Sign out first if you change it.</p><div class="row"><input class="in" id="acu" placeholder="https://your-auth.workers.dev" value="${esc(S.authUrl||'')}" style="flex:1" aria-label="Account server URL"><button class="btn" id="acsv">Save</button></div></div>`};r();
-  el.onclick=e=>{if(e.target.closest('#ab'))return launchBlank();if(e.target.closest('#acsv')){const v=$('#acu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.authUrl=v;save();return toast('Saved')}if(e.target.closest('#aisv')){const v=$('#aiu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.aiUrl=v;save();return toast('Saved')}const k=e.target.closest('[data-k]'),c=e.target.closest('[data-c]');if(k)S[k.dataset.k]=!S[k.dataset.k];if(c)S.acc=c.dataset.c;if(k||c){save();applyTheme();r()}};
+    el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:560px"><h1>Settings</h1><p class="sub">Changes apply right away.</p><div class="list">${tg('anim','Animations')}${tg('h24','24-hour clock')}${tg('acceptReq','Receive friend requests')}</div><h3 style="margin:22px 0 10px;font:600 17px 'Space Grotesk'">Accent color</h3><div class="row">${S.own.map(c=>`<button class="sw ${S.acc===c?'on':''}" data-c="${c}" style="width:56px;padding:8px" aria-label="Accent ${c}"><i style="background:${c};margin:0"></i></button>`).join('')}</div><p class="sub">More colors are in the Shop.</p><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Launch</h3><p class="sub" style="margin-bottom:10px">Open Lumen in an about:blank tab. Your browser may ask you to allow pop-ups first.</p><button class="btn" id="ab">Open in about:blank</button><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">AI connection</h3><p class="sub" style="margin-bottom:10px">Paste your Claude proxy URL to power the AI section on this site. Leave blank to use the built-in connection when there is one.</p><div class="row"><input class="in" id="aiu" placeholder="https://your-worker.workers.dev" value="${esc(S.aiUrl||'')}" style="flex:1" aria-label="AI endpoint URL"><button class="btn" id="aisv">Save</button></div><h3 style="margin:22px 0 6px;font:600 17px 'Space Grotesk'">Account server</h3><p class="sub" style="margin-bottom:10px">Paste your account server URL so one sign-in works on every link. Sign out first if you change it.</p><div class="row"><input class="in" id="acu" placeholder="https://your-auth.workers.dev" value="${esc(S.authUrl||'')}" style="flex:1" aria-label="Account server URL"><button class="btn" id="acsv">Save</button></div></div>`};r();
+  el.onclick=e=>{if(e.target.closest('#ab'))return launchBlank();if(e.target.closest('#acsv')){const v=$('#acu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.authUrl=v;save();return toast('Saved')}if(e.target.closest('#aisv')){const v=$('#aiu',el).value.trim();if(v&&!/^https:\/\//.test(v))return toast('Use an https:// URL');S.aiUrl=v;save();return toast('Saved')}const k=e.target.closest('[data-k]'),c=e.target.closest('[data-c]');if(k){S[k.dataset.k]=!S[k.dataset.k];if(k.dataset.k==='acceptReq'){if(aep()&&S.token)api({action:'set_prefs',token:S.token,acceptReq:S.acceptReq}).catch(()=>toast('Couldn’t save that setting'));else toast('Sign in through the account server to use this setting')}}if(c)S.acc=c.dataset.c;if(k||c){save();applyTheme();r()}};
 }
 
 (function(){const cv=document.getElementById('bg'),x=cv.getContext('2d'),rm=matchMedia('(prefers-reduced-motion:reduce)'),R=Math.random;let W=0,H=0,cur=[94,234,212],last=0,tm=0,mode='aurora';
@@ -885,6 +992,7 @@ function frame(t){const on=S.anim&&!rm.matches,dt=Math.min(.05,(t-last)/1000||0)
  on?requestAnimationFrame(frame):setTimeout(()=>requestAnimationFrame(frame),500)}
 requestAnimationFrame(frame)})();
 renderDock();applyTheme();applyCosmetics();show();
+setInterval(friendTick,20000);setTimeout(friendTick,2500);document.addEventListener('visibilitychange',()=>{if(!document.hidden)friendTick()});
 if(S.token&&aep())api({action:'me',token:S.token}).then(r=>{adopt(r.profile);try{localStorage.setItem('lumen',JSON.stringify(S))}catch(e){}const t=tabs.find(x=>x.id===cur);if(t&&(t.k==='home'||(t.k==='sec'&&t.key==='account')))show()}).catch(e=>{if(e.status===401){resetLocal();show()}});
 </script>
 </body>
