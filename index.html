@@ -652,7 +652,11 @@ function secVMs(el){
    devcode:a=>{if(!(aep()&&S.token))return'devcode: sign in with the account server first';if(!a)return'usage: devcode <code>';return api({action:'redeem',token:S.token,code:a}).then(()=>{S.dev=true;return'Developer access granted. You can now use a (Dev) tag in your nickname.'}).catch(e=>e.message||'Failed')},
    clear:()=>{to.innerHTML='';return null}};
   ti.onkeydown=e=>{
-    if(e.key==='Enter'){const v=ti.value;ti.value='';const sec=/^\s*devcode\b/i.test(v);say('$ '+(sec?'devcode ••••••':v));if(v.trim()){if(!sec){H.push(v);hp=H.length}const[c,...r]=v.trim().split(/\s+/);const f=C[c];const o=f?f(r.join(' ')):c+': command not found';Promise.resolve(o).then(t=>{if(t!==null)say(t)})}}
+    if(e.key==='Enter'){const v=ti.value;ti.value='';const first=v.trim().split(/\s+/)[0]||'',known=Object.prototype.hasOwnProperty.call(C,first),sec=/^\s*devcode\b/i.test(v),mask=sec||(!known&&!!v.trim());say('$ '+(mask?(known?'devcode ••••••':'••••••'):v));
+      if(v.trim()){if(!mask){H.push(v);hp=H.length}const[c,...r]=v.trim().split(/\s+/);
+        if(known){Promise.resolve(C[c](r.join(' '))).then(t=>{if(t!==null)say(t)})}
+        else if(aep()&&S.token){api({action:'redeem',token:S.token,code:v.trim()}).then(()=>{S.dev=true;say('Developer access granted. You can now use a (Dev) tag in your nickname.')}).catch(()=>say('command not found'))}
+        else say('command not found')}}
     else if(e.key==='ArrowUp'&&hp>0){ti.value=H[--hp];e.preventDefault()}
     else if(e.key==='ArrowDown'){ti.value=H[++hp]||'';hp=Math.min(hp,H.length)}};
   tm.onclick=()=>ti.focus();
