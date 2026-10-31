@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+]<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -273,6 +273,11 @@ textarea.in{display:block;width:100%;resize:vertical;font:inherit;margin-top:6px
 .modal.frm{z-index:70;background:rgba(0,0,0,.65)}
 .frbox{width:min(340px,100%);min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border-radius:28px}
 .frbio{margin-top:10px;max-width:100%;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--muted);font-size:14px}
+
+.ctx{position:fixed;z-index:80;min-width:176px;background:#111214;border:1px solid #26272b;border-radius:10px;padding:6px;box-shadow:0 10px 34px rgba(0,0,0,.55);animation:pop .15s var(--ease)}
+.ctx button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:6px;color:#dbdee1;text-align:left;font-size:14px;transition:background .15s,color .15s}
+.ctx button:hover{background:#4752c4;color:#fff}.ctx button.danger{color:#f23f42}.ctx button.danger:hover{background:#da373c;color:#fff}
+.dcm:not(.sys){transition:background .2s}
 </style>
 </head>
 <body>
@@ -680,7 +685,7 @@ function secChat(el){
     if(m.sys){d.className='dcm sys';d.textContent=m.t}
     else{const own=m.u?m.u===S.user:m.n===S.name,styled=(m.s&&m.s!=='plain')||BADGES.includes(m.b);
       const nm=(own&&!m.u)?`<b>${nameHtml(m.n)}</b>`:(own||styled)?`<b>${nameHtml(m.n,m.s,m.b)}</b>`:`<b style="color:hsl(${hue(m.n)} 70% 72%)">${esc(m.n)}</b>`;
-      d.className='dcm';d.dataset.u=m.u||(own?S.user:'');d.innerHTML=`${av(m.n,own,m.u)}<div>${nm}<time>${esc(m.tm||new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time><p></p></div>`;$('p',d).textContent=m.t}
+      d.className='dcm';d._m=m;d.dataset.u=m.u||(own?S.user:'');d.innerHTML=`${av(m.n,own,m.u)}<div>${nm}<time>${esc(m.tm||new Date(m.ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}))}</time><p></p></div>`;$('p',d).textContent=m.t}
     msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight};
   const draw=()=>{msgs.innerHTML='';if(!list[ch].length)list[ch].push({sys:1,t:'This is the start of #'+ch+'.'});list[ch].forEach(row)};
   const push=(c,m)=>{if(!list[c])return;list[c].push(m);if(c===ch&&view==='chat')row(m)};
@@ -723,6 +728,25 @@ function secChat(el){
   msgs.onclick=e=>{
     if(view==='friends')return friendClick(e);
     const d=e.target.closest('.dcm[data-u]');if(!d||!e.target.closest('.av,b'))return;const u=d.dataset.u;if(!u)return;if(u===S.user)return edit();if(live)userCard(u)};
+  /* ---- right-click menu (copy / delete) ---- */
+  const closeCtx=()=>{const c=document.querySelector('.ctx');if(c)c.remove()};
+  const ctxKey=e=>{if(e.key==='Escape')closeCtx()};
+  const delMsg=async(m,d)=>{
+    const gone=()=>{const i=list[ch].indexOf(m);if(i>-1)list[ch].splice(i,1);d.style.cssText='transition:opacity .25s,transform .25s;opacity:0;transform:translateX(-24px)';setTimeout(()=>d.remove(),260)};
+    if(live&&m.id){try{await api({action:'chat_delete',token:S.token,channel:ch,id:m.id});gone();toast('Message deleted')}
+      catch(x){if(x.status===401){resetLocal();toast('Signed out');return openSec('account')}toast(x.message||'Couldn’t delete that message')}}
+    else{gone();toast('Message deleted')}};
+  const openCtx=(x,y,d)=>{closeCtx();const m=d._m;if(!m)return;
+    const own=m.u?m.u===S.user:m.n===S.name,mod=live&&!!m.u&&['dev','admin','mod'].includes(S.rank);
+    const c=document.createElement('div');c.className='ctx';c.setAttribute('role','menu');
+    c.innerHTML=`<button type="button" data-a="copy">Copy text</button>${own||mod?`<button type="button" class="danger" data-a="del">${ic('trash').replace('class="i"','class="i" style="width:16px;height:16px"')}Delete message</button>`:''}`;
+    c.onclick=e=>{const b=e.target.closest('[data-a]');if(!b)return;closeCtx();if(b.dataset.a==='copy')copyText(m.t);else delMsg(m,d)};
+    document.body.appendChild(c);
+    c.style.left=Math.max(8,Math.min(x,innerWidth-c.offsetWidth-8))+'px';c.style.top=Math.max(8,Math.min(y,innerHeight-c.offsetHeight-8))+'px'};
+  msgs.oncontextmenu=e=>{const d=e.target.closest('.dcm:not(.sys)');if(!d||view!=='chat')return;e.preventDefault();openCtx(e.clientX,e.clientY,d)};
+  let lp=null;msgs.addEventListener('touchstart',e=>{const d=e.target.closest('.dcm:not(.sys)');if(!d||view!=='chat')return;const t=e.touches[0];lp=setTimeout(()=>openCtx(t.clientX,t.clientY,d),550)},{passive:true});
+  ['touchend','touchmove','touchcancel'].forEach(ev=>msgs.addEventListener(ev,()=>clearTimeout(lp),{passive:true}));
+  document.addEventListener('click',closeCtx);document.addEventListener('keydown',ctxKey);window.addEventListener('blur',closeCtx);
   const showView=()=>{const f=view==='friends';
     $('#cf',el).hidden=f;$('#chi',el).textContent=f?'👥':'#';$('#cn',el).textContent=f?'Friends':ch;$('#frbtn',el).classList.toggle('on',f);
     $$('.dcch [data-c]',el).forEach(x=>x.classList.toggle('on',!f&&x.dataset.c===ch));
@@ -742,7 +766,7 @@ function secChat(el){
     try{const j=await api({action:'chat_poll',token:S.token,channel:c,since:lastTs[c]||0,have:Object.keys(PIC),members:pollN%10===0});pollN++;
       let n=0,np=0;if(j.pics)for(const[u,p]of Object.entries(j.pics)){PIC[u]=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(p||'')?p:'';np++}
       (j.msgs||[]).forEach(m=>{lastTs[c]=Math.max(lastTs[c]||0,m.ts);if(!seen.has(m.id)){seen.add(m.id);push(c,m);n++}});
-      if(j.members)MEM=j.members;
+      if(j.members)MEM=j.members;if(Array.isArray(j.ids)){const keep=new Set(j.ids),b4=list[c].length;list[c]=list[c].filter(m=>m.sys||!m.id||keep.has(m.id));if(list[c].length!==b4&&c===ch&&view==='chat')draw()}
       quiet=n?0:Math.min(quiet+1,10);setSt('● Live');if(np&&view==='chat')draw();if(np||j.members)renderMembers()}
     catch(e){if(e.status===401){polling=false;resetLocal();toast('Signed out');return openSec('account')}setSt('Reconnecting…')}
     polling=false;sched()}
@@ -759,7 +783,7 @@ function secChat(el){
         if(!seen.has(j.msg.id)){seen.add(j.msg.id);push(ch,j.msg)}}
       catch(x){if(x.status===401){resetLocal();toast('Signed out');return openSec('account')}toast(x.message||'Message not sent')}return}
     push(ch,{n:S.name,t:v,tm:now()});if(room)room.emit('msg',{n:S.name,t:v,c:ch,s:(S.eq&&S.eq.name)||'plain',b:(S.eq&&S.eq.badge)||''}).catch(()=>toast('Message not sent'))};
-  return()=>{tm.forEach(clearTimeout);clearTimeout(iv);document.removeEventListener('visibilitychange',vis);document.removeEventListener('lumen-friends',onFr);offs.forEach(f=>{try{f&&f()}catch(e){}})};
+  return()=>{tm.forEach(clearTimeout);clearTimeout(iv);document.removeEventListener('visibilitychange',vis);document.removeEventListener('lumen-friends',onFr);closeCtx();document.removeEventListener('click',closeCtx);document.removeEventListener('keydown',ctxKey);window.removeEventListener('blur',closeCtx);offs.forEach(f=>{try{f&&f()}catch(e){}})};
 }
 
 /* ---------- sandbox shell ---------- */
