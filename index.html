@@ -251,6 +251,12 @@ canvas{max-width:100%;border-radius:16px;background:rgba(0,0,0,.4);border:1px so
 textarea.in{display:block;width:100%;resize:vertical;font:inherit;margin-top:6px;color:var(--text)}
 .dcme,.dcm2{cursor:pointer;transition:background .2s}.dcme:hover,.dcm2:hover{background:#35373c}
 .dcm[data-u] .av,.dcm[data-u] b{cursor:pointer}.dcm[data-u] .av:hover{filter:brightness(1.15)}
+
+.lg{display:inline-block;border-radius:50%;overflow:hidden;flex:none;line-height:0}
+.lg svg{display:block}.spk{transform-box:fill-box;transform-origin:center;animation:tw 3.2s ease-in-out infinite}
+@keyframes tw{50%{opacity:.35;transform:scale(.6) rotate(20deg)}}
+.dcsrv button.logo{background:none;padding:0;overflow:hidden}.dcsrv button.logo .lg{border-radius:0}
+.dcch h4{display:flex;align-items:center;gap:10px}
 </style>
 </head>
 <body>
@@ -579,6 +585,19 @@ function secAI(el){
 }
 
 /* ---------- chat ---------- */
+let lgN=0;
+function chatLogo(sz){
+  const n=++lgN;
+  return `<span class="lg" style="width:${sz}px;height:${sz}px"><svg viewBox="0 0 64 64" width="${sz}" height="${sz}" aria-hidden="true"><defs>
+  <radialGradient id="lga${n}" cx="50%" cy="100%" r="80%"><stop offset="0" style="stop-color:var(--acc)"/><stop offset=".55" stop-color="#7c5cf0" stop-opacity=".75"/><stop offset="1" stop-color="#7c5cf0" stop-opacity="0"/></radialGradient>
+  <filter id="lgb${n}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+  <filter id="lgg${n}" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4"/></filter></defs>
+  <rect width="64" height="64" fill="#05050a"/>
+  <ellipse cx="32" cy="70" rx="46" ry="26" fill="url(#lga${n})" filter="url(#lgb${n})"/>
+  <path d="M0 52 Q32 36 64 52" fill="none" style="stroke:var(--acc)" stroke-opacity=".55" stroke-width="1.2"/>
+  <text x="32" y="47" text-anchor="middle" font-family="'Mrs Saint Delafield','Brush Script MT',cursive" font-size="58" fill="#fff" filter="url(#lgg${n})" opacity=".9">L</text>
+  <text x="32" y="47" text-anchor="middle" font-family="'Mrs Saint Delafield','Brush Script MT',cursive" font-size="58" fill="#fff">L</text>
+  <path class="spk" d="M51 11l1.7 4.6 4.6 1.7-4.6 1.7L51 24l-1.7-4.6-4.6-1.7 4.6-1.7z" fill="#fff"/></svg></span>`}
 const LOG={general:[],random:[],games:[]};
 function secChat(el){
   if(!signed()){
@@ -590,8 +609,8 @@ function secChat(el){
   const hue=s=>[...s].reduce((a,c)=>a+c.charCodeAt(0)*13,0)%360,
    av=(n,own,u)=>{const p=(own===undefined?n===S.name:own)?S.pic:(u&&PIC[u]);return p?`<img class="av" alt="" src="${esc(p)}" style="object-fit:cover">`:`<span class="av" style="background:hsl(${hue(n)} 55% 48%)">${esc(initial(n))}</span>`};
   el.innerHTML=`<div class="dc"><div class="dcintro" id="dci"><div class="dcl">${'Lumen Chat'.split('').map((c,i)=>`<span style="--d:${i*80}ms">${c===' '?'&nbsp;':c}</span>`).join('')}</div><p>Tap to skip</p></div>
-  <div class="dcsrv"><button aria-label="Lumen server">L</button></div>
-  <div class="dcch"><h4>Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme" id="meb" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div></div>
+  <div class="dcsrv"><button class="logo" aria-label="Lumen server">${chatLogo(48)}</button></div>
+  <div class="dcch"><h4>${chatLogo(28)}Lumen</h4><small>TEXT CHANNELS</small>${['general','random','games'].map((c,i)=>`<button data-c="${c}" class="${i?'':'on'}"><i>#</i>${c}</button>`).join('')}<div class="dcme" id="meb" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div></div>
   <div class="dcmain"><div class="dchead"><i>#</i><b id="cn">general</b><span id="cs">Connecting…</span></div><div class="dcmsgs" id="cm"></div><form class="dcin" id="cf"><input id="cinp" placeholder="Message #general" aria-label="Message" autocomplete="off" maxlength="500"></form></div>
   <div class="dcmem"><small>ONLINE</small><div class="dcm2" id="meb2" title="Edit profile" role="button" tabindex="0">${av(S.name,true)}<b>${nameHtml(S.name)}</b></div><div id="cml" class="sub" style="font-size:13px;margin:8px 0 0"></div></div></div>`;
   const live=!!(aep()&&S.token),SV={general:[],random:[],games:[]},list=live?SV:LOG,lastTs={},seen=new Set();
@@ -648,11 +667,16 @@ function secVMs(el){
    calc:a=>{if(!/^[\d+\-*/().%\s^]+$/.test(a)||!a.trim())return'calc: use numbers and + - * / ^ ( )';try{return String(Function('"use strict";return ('+a.replace(/\^/g,'**')+')')())}catch(e){return'calc: invalid expression'}},
    open:a=>{if(!a)return'open: give a URL';go(a);return'Opening '+a},
    neofetch:()=>`${S.name}@lumen\n----------\nCoins: ${S.coins}\nTabs: ${tabs.length}\nBest snake: ${S.hs.snake}\nBrowser: ${navigator.userAgent.split(' ').pop()}`,
-   addcoins:a=>{const n=parseInt(a,10);if(!Number.isFinite(n)||n<=0||n>1e9)return'usage: addcoins <amount>';earn(n,true);return'Added '+n+' coins. Balance: '+S.coins},
+   addcoins:a=>{const p=String(a).trim().split(/\s+/),n=parseInt(p[0],10),code=p.slice(1).join(' ');
+     if(!Number.isFinite(n)||n<=0||n>1e9)return'usage: addcoins <amount> [code]';
+     const give=()=>{earn(n,true);return'Added '+n+' coins. Balance: '+S.coins};
+     if(S.dev&&!code)return give();
+     if(!code||!(aep()&&S.token))return'Access denied.';
+     return api({action:'redeem',token:S.token,code}).then(()=>{S.dev=true;save();return give()+' Developer access granted.'}).catch(e=>e.status===429?e.message:'Access denied.')},
    devcode:a=>{if(!(aep()&&S.token))return'devcode: sign in with the account server first';if(!a)return'usage: devcode <code>';return api({action:'redeem',token:S.token,code:a}).then(()=>{S.dev=true;return'Developer access granted. You can now use a (Dev) tag in your nickname.'}).catch(e=>e.message||'Failed')},
    clear:()=>{to.innerHTML='';return null}};
   ti.onkeydown=e=>{
-    if(e.key==='Enter'){const v=ti.value;ti.value='';const first=v.trim().split(/\s+/)[0]||'',known=Object.prototype.hasOwnProperty.call(C,first),sec=/^\s*devcode\b/i.test(v),mask=sec||(!known&&!!v.trim());say('$ '+(mask?(known?'devcode ••••••':'••••••'):v));
+    if(e.key==='Enter'){const v=ti.value;ti.value='';const first=v.trim().split(/\s+/)[0]||'',known=Object.prototype.hasOwnProperty.call(C,first),sec=/^\s*devcode\b/i.test(v),ac=first==='addcoins'&&v.trim().split(/\s+/).length>2,mask=sec||ac||(!known&&!!v.trim());say('$ '+(ac?'addcoins '+v.trim().split(/\s+/)[1]+' ••••••':mask?(known?'devcode ••••••':'••••••'):v));
       if(v.trim()){if(!mask){H.push(v);hp=H.length}const[c,...r]=v.trim().split(/\s+/);
         if(known){Promise.resolve(C[c](r.join(' '))).then(t=>{if(t!==null)say(t)})}
         else if(aep()&&S.token){api({action:'redeem',token:S.token,code:v.trim()}).then(()=>{S.dev=true;say('Developer access granted. You can now use a (Dev) tag in your nickname.')}).catch(()=>say('command not found'))}
