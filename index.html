@@ -421,7 +421,8 @@ function show(){
   $$('#webs>*').forEach(n=>n.hidden=true);
   const v=$('#view');
   if(t.k==='web'){v.hidden=true;if(!t.node){t.node=webNode(t);$('#webs').appendChild(t.node)}t.node.hidden=false;t.node.classList.remove('enter');void t.node.offsetWidth;t.node.classList.add('enter')}
-  else{v.hidden=false;v.innerHTML='';const el=document.createElement('div');el.className='pane enter';v.appendChild(el);cleanup=(t.k==='home'?home:SEC[t.key].f)(el)||null}
+  else{v.hidden=false;v.innerHTML='';const el=document.createElement('div');el.className='pane enter';v.appendChild(el);try{cleanup=(t.k==='home'?home:SEC[t.key].f)(el)||null}
+    catch(err){console.error(err);el.innerHTML='<div class="auth"><div class="authc" style="text-align:center"><h1>Something went wrong</h1><p class="sub">'+esc(err&&err.message||'Unknown error')+'</p><button class="btn" id="rst2" style="width:100%;justify-content:center">Go to Home</button></div></div>';el.querySelector('#rst2').onclick=()=>{tabs=[{id:nid++,k:'home',t:'Home'}];cur=tabs[0].id;hist=[cur];hi=0;show()}}}
   $('#addr').value=t.k==='web'?t.url:'';document.title=t.t+' – Lumen';saveTabs();
 }
 document.addEventListener('click',e=>{
@@ -568,10 +569,10 @@ const LEGAL={"tos": {"t": "Terms of Service", "s": [["Agreeing to these terms", 
 function legalModal(key){
   const d=LEGAL[key];if(!d)return;
   document.querySelectorAll('.modal.lg').forEach(m=>m.remove());
-  const fill=t=>esc(t).replace(/\{\{NAME\}\}/g,esc(Mark||'the operator of Lumen')).replace(/\{\{EMAIL\}\}/g,esc(ta5l0good@gmail.com||'[add your contact email]')).replace(/\{\{ADDRESS\}\}/g,esc(Los Angeles, California||'[add your mailing address]'));
+  const fill=t=>esc(t).replace(/\{\{NAME\}\}/g,esc(LEGAL_NAME||'the operator of Lumen')).replace(/\{\{EMAIL\}\}/g,esc(LEGAL_EMAIL||'[add your contact email]')).replace(/\{\{ADDRESS\}\}/g,esc(LEGAL_ADDRESS||'[add your mailing address]'));
   const body=d.s.map(([h,items],i)=>`<h4>${i+1}. ${esc(h)}</h4>`+items.map(it=>it[0]==='ul'?`<ul>${it[1].map(x=>`<li>${fill(x)}</li>`).join('')}</ul>`:`<p>${fill(it[1])}</p>`).join('')).join('');
   const o=document.createElement('div');o.className='modal lg';
-  o.innerHTML=`<div class="mbox legal" role="dialog" aria-label="${esc(d.t)}"><div class="lgh"><h3>${esc(d.t)}</h3><button class="ic" type="button" id="lgx" aria-label="Close">${ic('x')}</button></div><p class="sub" style="font-size:12px;margin:0 0 8px">Last updated ${esc(11/01/26)}</p><div class="lgb">${body}</div><div class="row lgf"><button type="button" class="btn ${key==='tos'?'':'ghost'}" data-lg="tos">Terms</button><button type="button" class="btn ${key==='privacy'?'':'ghost'}" data-lg="privacy">Privacy</button><button type="button" class="btn ${key==='dmca'?'':'ghost'}" data-lg="dmca">DMCA</button></div></div>`;
+  o.innerHTML=`<div class="mbox legal" role="dialog" aria-label="${esc(d.t)}"><div class="lgh"><h3>${esc(d.t)}</h3><button class="ic" type="button" id="lgx" aria-label="Close">${ic('x')}</button></div><p class="sub" style="font-size:12px;margin:0 0 8px">Last updated ${esc(LEGAL_DATE)}</p><div class="lgb">${body}</div><div class="row lgf"><button type="button" class="btn ${key==='tos'?'':'ghost'}" data-lg="tos">Terms</button><button type="button" class="btn ${key==='privacy'?'':'ghost'}" data-lg="privacy">Privacy</button><button type="button" class="btn ${key==='dmca'?'':'ghost'}" data-lg="dmca">DMCA</button></div></div>`;
   document.body.appendChild(o);
   const close=()=>{o.classList.add('out');setTimeout(()=>o.remove(),220)};
   o.querySelector('#lgx').onclick=close;o.onclick=e=>{if(e.target===o)close()};o.onkeydown=e=>{if(e.key==='Escape')close()};
