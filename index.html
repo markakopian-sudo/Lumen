@@ -820,7 +820,7 @@ function secChat(el){
 /* ---------- sandbox shell ---------- */
 function secVMs(el){
   el.innerHTML=`<div class="glow"></div><div style="position:relative;max-width:760px"><h1>Sandbox</h1><p class="sub">A small shell that runs inside this page. Try <code>help</code>.</p><div class="term" id="tm"><div id="to"></div><div class="ln"><span>$</span><input id="ti" autocomplete="off" spellcheck="false" aria-label="Command"></div></div></div>`;
-  const to=$('#to',el),ti=$('#ti',el),tm=$('#tm',el),H=[];let hp=0;const F={'readme.txt':'Welcome to the Lumen sandbox.','todo.txt':'- play a game\n- earn coins\n- unlock a color'};
+  const to=$('#to',el),ti=$('#ti',el),tm=$('#tm',el),H=[];let hp=0,WZ=null;const F={'readme.txt':'Welcome to the Lumen sandbox.','todo.txt':'- play a game\n- earn coins\n- unlock a color'};
   const say=t=>{const d=document.createElement('div');d.className='o';d.textContent=t;to.appendChild(d);tm.scrollTop=tm.scrollHeight};
   say('Lumen sandbox v1. Type "help" for commands.');
   const C={help:()=>'help  ls  cat <file>  echo <text>  date  whoami  calc <expr>  open <url>  neofetch  clear',
@@ -834,12 +834,39 @@ function secVMs(el){
      if(S.dev&&!code)return give();
      if(!code||!(aep()&&S.token))return'Access denied.';
      return api({action:'redeem',token:S.token,code}).then(()=>{S.dev=true;save();return give()+' Developer access granted.'}).catch(e=>e.status===429?e.message:'Access denied.')},
+   addcode:()=>{
+     if(!(aep()&&S.token&&S.dev))return'Access denied.';
+     const D={},ps=$('.ln span',el);
+     const done=()=>{WZ=null;ps.textContent='$'};
+     const ask=(q,fn)=>{say(q);WZ={next:v=>{if(/^cancel$/i.test(v)){done();say('Cancelled.');return}fn(v)}}};
+     const validKey=k=>{const[c,...r]=k.split(':'),id=r.join(':');return c==='colors'?COLORS.some(x=>x[1]===id):!!(ITEMS[c]&&ITEMS[c].some(x=>x[0]===id))};
+     const allKeys=()=>'Use cat:id, for example name:glow\n'+'colors: '+COLORS.map(c=>c[1]).join(' ')+'\n'+Object.entries(ITEMS).map(([c,l])=>c+': '+l.map(x=>x[0]).join(' ')).join('\n');
+     const s1=()=>ask('Code name (3–24 letters, numbers, - or _). Type cancel to stop:',v=>{const n=v.toUpperCase();if(!/^[A-Z0-9_-]{3,24}$/.test(n)){say('That name isn’t valid.');return s1()}D.name=n;s2()});
+     const s2=()=>ask('Coins to give (0 for none):',v=>{if(!/^\d+$/.test(v)||+v>1e7){say('Enter a whole number from 0 to 10000000.');return s2()}D.coins=+v;s3()});
+     const s3=()=>ask('Items to give, comma-separated (like name:glow, badge:🔥, bg:stars), "none", or "list" to see every key:',v=>{
+       if(/^list$/i.test(v)){say(allKeys());return s3()}
+       if(!v||/^none$/i.test(v)){D.items=[];return s4()}
+       const arr=v.split(',').map(x=>x.trim()).filter(Boolean),bad=arr.filter(k=>!validKey(k));
+       if(bad.length){say('Unknown item: '+bad.join(', ')+'. Type list to see valid keys.');return s3()}
+       D.items=arr;s4()});
+     const s4=()=>ask('How many people can use it in total? (0 = unlimited):',v=>{if(!/^\d+$/.test(v)||+v>1e6){say('Enter a whole number.');return s4()}D.max=+v;s5()});
+     const s5=()=>ask('Expires in how many days? (0 = never):',v=>{if(!/^\d+$/.test(v)||+v>3650){say('Enter a whole number from 0 to 3650.');return s5()}D.days=+v;s6()});
+     const s6=()=>ask('Message shown when someone redeems it (press Enter to skip):',v=>{D.msg=v.slice(0,140);s7()});
+     const s7=()=>{if(!D.coins&&!D.items.length){say('A code needs coins or items. Starting over from coins.');return s2()}
+       say(`Code: ${D.name}\nCoins: ${D.coins}\nItems: ${D.items.join(', ')||'none'}\nMax uses: ${D.max||'unlimited'}\nExpires: ${D.days?'in '+D.days+' days':'never'}\nMessage: ${D.msg||'(none)'}`);
+       ask('Create this code? (yes / no):',v=>{
+         if(!/^y(es)?$/i.test(v)){done();say('Cancelled.');return}
+         done();api({action:'code_create',token:S.token,...D}).then(()=>say('Code '+D.name+' created. People can redeem it in the Shop.')).catch(e=>say(e.message||'Failed'))})};
+     ps.textContent='?';s1();return null},
+   codes:()=>{if(!(aep()&&S.token&&S.dev))return'Access denied.';return api({action:'code_list',token:S.token}).then(j=>j.codes.length?j.codes.map(c=>`${c.name}  coins:${c.coins}  items:${c.items.join(',')||'-'}  used:${c.uses}/${c.max||'∞'}  ${c.exp?'expires '+new Date(c.exp).toLocaleDateString():'no expiry'}`).join('\n'):'No codes yet.').catch(e=>e.message||'Failed')},
+   delcode:a=>{const n=String(a).trim();if(!n)return'usage: delcode <name>';if(!(aep()&&S.token&&S.dev))return'Access denied.';return api({action:'code_delete',token:S.token,name:n}).then(()=>'Deleted '+n.toUpperCase()+'.').catch(e=>e.message||'Failed')},
    announce:a=>{const t=String(a).trim();if(!t)return'usage: announce <message>   (or: announce clear)';if(!(aep()&&S.token))return'Access denied.';const clr=t.toLowerCase()==='clear';
      return api({action:'announce',token:S.token,text:clr?'':t,clear:clr}).then(j=>{if(clr){showAnn(null);return'Announcement cleared.'}showAnn(j.announcement);return'Announcement sent to everyone.'}).catch(e=>e.message||'Failed')},
    setrank:a=>{const[p,rk]=String(a).trim().split(/\s+/);if(!p||!['admin','mod','member'].includes(rk))return'usage: setrank <username> <admin|mod|member>';if(!(aep()&&S.token))return'Access denied.';return api({action:'set_rank',token:S.token,username:p,rank:rk}).then(()=>p+' is now '+rk+'.').catch(e=>e.message||'Failed')},
    devcode:a=>{if(!(aep()&&S.token))return'devcode: sign in with the account server first';if(!a)return'usage: devcode <code>';return api({action:'redeem',token:S.token,code:a}).then(()=>{S.dev=true;return'Developer access granted. You can now use a (Dev) tag in your nickname.'}).catch(e=>e.message||'Failed')},
    clear:()=>{to.innerHTML='';return null}};
   ti.onkeydown=e=>{
+    if(e.key==='Enter'&&WZ){const v=ti.value;ti.value='';say('? '+v);WZ.next(v.trim());return}
     if(e.key==='Enter'){const v=ti.value;ti.value='';const first=v.trim().split(/\s+/)[0]||'',known=Object.prototype.hasOwnProperty.call(C,first),sec=/^\s*devcode\b/i.test(v),ac=first==='addcoins'&&v.trim().split(/\s+/).length>2,mask=sec||ac||(!known&&!!v.trim());say('$ '+(ac?'addcoins '+v.trim().split(/\s+/)[1]+' ••••••':mask?(known?'devcode ••••••':'••••••'):v));
       if(v.trim()){if(!mask){H.push(v);hp=H.length}const[c,...r]=v.trim().split(/\s+/);
         if(known){Promise.resolve(C[c](r.join(' '))).then(t=>{if(t!==null)say(t)})}
@@ -909,12 +936,24 @@ function secShop(el){
     const ready=Date.now()-(S.gift||0)>=864e5,left=864e5-(Date.now()-(S.gift||0));
     el.innerHTML=`<div class="glow"></div><div style="position:relative"><h1>Shop</h1><p class="sub">You have <b>${S.coins}</b> coins${mult()>1?` · booster x${mult()} active`:''}. Earn more in Mini games.</p>
     <div class="row"><button class="btn ${ready?'':'ghost'}" id="gift" ${ready?'':'disabled'}>${ready?'Claim daily gift (+15)':'Next gift in '+Math.ceil(left/36e5)+'h'}</button></div>
+    <form class="row" id="rcf"><input class="in" id="rci" placeholder="Have a code? Enter it here" maxlength="24" style="flex:1;max-width:280px" aria-label="Redeem a code" autocomplete="off"><button class="btn">Redeem</button></form>
     <div class="seg" id="cats">${CATS.map(([k,n])=>`<button data-k="${k}" class="${k===cat?'on':''}">${n}</button>`).join('')}</div>
     <div class="sg">${list(cat).map(([id,n,p,d],i)=>{const o=owned(cat,id,p),on=isOn(cat,id);
       const lab=on?(cat==='fx'?'Turn off':'In use'):o?(cat==='boost'?'Owned':cat==='fx'?'Turn on':'Equip'):p+' coins';
       return`<div class="si" style="--i:${i}"><div class="pvw">${pv(cat,id,n)}</div><b>${esc(n)}</b><small>${esc(d)}</small><button class="btn ${o?'ghost':''}" data-id="${esc(id)}" ${(on&&cat!=='fx')||(o&&cat==='boost')?'disabled':''}>${lab}</button></div>`}).join('')}</div></div>`;
   }
   draw();
+  el.addEventListener('submit',async e=>{
+    if(!e.target.closest('#rcf'))return;e.preventDefault();
+    const code=$('#rci',el).value.trim();if(!code)return;
+    if(!(aep()&&S.token))return toast('Codes need the account server');
+    try{const j=await api({action:'code_redeem',token:S.token,code});const got=[];
+      if(j.coins>0){S.coins+=j.coins;got.push(j.coins+' coins')}
+      (j.items||[]).forEach(k=>{const[c,...r]=k.split(':'),id=r.join(':');
+        if(c==='colors'){if(COLORS.some(x=>x[1]===id)&&!S.own.includes(id)){S.own.push(id);got.push('a color')}}
+        else if(ITEMS[c]&&ITEMS[c].some(x=>x[0]===id)&&!(S.items||[]).includes(k)){S.items.push(k);got.push(id)}});
+      save();applyTheme();toast(j.msg||('Redeemed: '+(got.join(', ')||'nothing new')));draw()}
+    catch(x){toast(x.message||'Couldn’t redeem that code')}});
   el.onclick=e=>{
     const k=e.target.closest('[data-k]');if(k){cat=k.dataset.k;return draw()}
     if(e.target.closest('#gift')){S.gift=Date.now();save();earn(15,true);return draw()}
